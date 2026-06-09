@@ -1,0 +1,9 @@
+FastAPI
+uvicorn
+redis
+asyncpg
+sqlalchemy
+pydantic
+python-dotenv
+pytest
+httpx
