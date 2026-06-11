@@ -1,10 +1,15 @@
 import secrets
-from typing import Callable
+from typing import Callable, Tuple
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
+from argon2 import PasswordHasher
+from argon2.exceptions import Argon2Error
+from config import get_settings
 
+settings = get_settings()
+ph = PasswordHasher()
 
-CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_"
-DEFAULT_CODE_LENGTH = 7
+CODE_ALPHABET = settings.CODE_ALPHABET
+DEFAULT_CODE_LENGTH = settings.DEFAULT_CODE_LENGTH
 
 def normalize_url(raw: str, strip_utm: bool = True) -> str:
     raw = raw.strip()
@@ -32,3 +37,21 @@ def ensure_unique_code(candidate_fn: Callable[[], str], exists_fn: Callable[[str
             return c
         
     raise RuntimeError("failed to generate unique code after 5 retries")
+
+def password_hash(password: str):
+    if not password:
+        raise ValueError("Password cannot be Empty!")
+    
+    return ph.hash(password)
+    
+def verify_password(hashed_password: str, login_password: str)-> bool:
+    if not hashed_password or not login_password:
+        return False
+    try:
+        return ph.verify(hashed_password, login_password)
+    except Argon2Error:
+        return False
+        
+
+def create_link(url: str):
+    pass
