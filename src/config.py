@@ -1,21 +1,22 @@
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import AnyUrl, Field, SecretStr
+from pydantic import AnyUrl, Field, SecretStr, field_validator, PostgresDsn
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
 
 class Settings(BaseSettings):
     # core
-    DATABASE_URL: AnyUrl
+    DATABASE_URL: PostgresDsn
     REDIS_URL: AnyUrl
     SECRET_KEY: SecretStr
     DOMAIN: AnyUrl
 
     # runtime
     ENV: str = "development"
-    LOG_LEVEL: str = "info"
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str  =  "app.log"
 
     DEFAULT_CODE_LENGTH: int = Field(default=7, ge=4, le=32)
     CODE_ALPHABET: str = Field(

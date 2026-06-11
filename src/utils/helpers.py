@@ -52,6 +52,3 @@ def verify_password(hashed_password: str, login_password: str)-> bool:
     except Argon2Error:
         return False
         
-
-def create_link(url: str):
-    pass
