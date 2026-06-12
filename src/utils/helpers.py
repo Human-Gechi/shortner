@@ -3,7 +3,7 @@ from typing import Callable, Tuple
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from argon2 import PasswordHasher
 from argon2.exceptions import Argon2Error
-from config import get_settings
+from src.config import get_settings
 
 settings = get_settings()
 ph = PasswordHasher()
