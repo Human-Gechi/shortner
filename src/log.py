@@ -4,6 +4,7 @@ from pathlib import Path
 
 from src.config import get_settings
 
+
 def setup_logging() -> None:
     settings = get_settings()
     level_name = settings.LOG_LEVEL
@@ -29,7 +30,9 @@ def setup_logging() -> None:
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fh = RotatingFileHandler(str(log_path), maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
+    fh = RotatingFileHandler(
+        str(log_path), maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+    )
     fh.setLevel(level)
     fh.setFormatter(formatter)
     root.addHandler(fh)

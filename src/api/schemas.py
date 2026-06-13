@@ -2,18 +2,13 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from pydantic import (
-    BaseModel,
-    HttpUrl,
-    Field,
-    field_validator,
-    ConfigDict
-)
+from pydantic import BaseModel, HttpUrl, Field, field_validator, ConfigDict
 
 # data coming IN from the client
 
+
 class CreateLinkRequest(BaseModel):
-    url: HttpUrl = Field(..., description="The long URL to shorten")
+    original_url: HttpUrl = Field(..., description="The long URL to shorten")
     custom_alias: Optional[str] = Field(default=None, min_length=3, max_length=30)
     expires_at: Optional[datetime] = Field(default=None)
     title: Optional[str] = Field(default=None, max_length=200)
@@ -25,8 +20,10 @@ class CreateLinkRequest(BaseModel):
     def alias_must_be_slug(cls, v):
         if v is None:
             return v
-        if not re.match(r'^[a-zA-Z0-9\-_]{3,30}$', v):
-            raise ValueError("Alias can only contain letters, numbers, hyphens, underscores")
+        if not re.match(r"^[a-zA-Z0-9\-_]{3,30}$", v):
+            raise ValueError(
+                "Alias can only contain letters, numbers, hyphens, underscores"
+            )
         RESERVED = {"api", "admin", "docs", "metrics", "health", "static"}
         if v.lower() in RESERVED:
             raise ValueError(f"'{v}' is a reserved keyword. Use a different alias")
@@ -51,6 +48,7 @@ class AccessPasswordRequest(BaseModel):
 
 # data going OUT to the client
 
+
 class LinkResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -63,11 +61,11 @@ class LinkResponse(BaseModel):
     created_at: datetime
     expires_at: Optional[datetime]
     is_active: bool
-    qr_code_svg: Optional[str] = None 
+    qr_code_svg: Optional[str] = None
 
 
 class TimeSeriesPoint(BaseModel):
-    date: str  
+    date: str
     clicks: int
 
 
@@ -107,13 +105,14 @@ class PaginatedLinksResponse(BaseModel):
 
 # internal models used inside the app, never returned directly to clients
 
+
 class CacheEntry(BaseModel):
     original_url: str
     is_active: bool
-    expires_at: Optional[str]      
+    expires_at: Optional[str]
     click_count: int
     max_clicks: Optional[int]
-    password_hash: Optional[str]   
+    password_hash: Optional[str]
 
 
 class GeoIPResult(BaseModel):
@@ -122,4 +121,4 @@ class GeoIPResult(BaseModel):
     country_code: Optional[str] = None
     city: Optional[str] = None
     region: Optional[str] = None
-    is_success: bool = False   
+    is_success: bool = False

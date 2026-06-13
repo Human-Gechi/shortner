@@ -1,5 +1,4 @@
 from src.app_models.database import async_engine, Base
-from src.app_models.models import Link, Click
 import asyncio
 from src.log import setup_logging, get_logger
 
@@ -15,7 +14,5 @@ async def create_tables():
         logger.info("--- TABLE CREATION COMPLETED --- ")
     await async_engine.dispose()
 
+
 asyncio.run(create_tables())
-
-    
-
