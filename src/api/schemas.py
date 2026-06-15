@@ -56,12 +56,10 @@ class LinkResponse(BaseModel):
     code: str
     short_url: str
     original_url: str
-    title: Optional[str]
     click_count: int = 0
     created_at: datetime
     expires_at: Optional[datetime]
     is_active: bool
-    qr_code_svg: Optional[str] = None
 
 
 class TimeSeriesPoint(BaseModel):

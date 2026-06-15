@@ -34,9 +34,7 @@ async def code_exists(db: AsyncSession, code: str) -> bool:
 async def ensure_unique_code(db: AsyncSession, max_retries: int = 5) -> str:
     for _ in range(max_retries):
         candidate = generate_code()
-        result = await db.execute(
-            select(Link).where(Link.code == candidate)
-        )
+        result = await db.execute(select(Link).where(Link.code == candidate))
         if not result.scalar_one_or_none():
             return candidate
     raise RuntimeError("Failed to generate unique code after 5 retries")
@@ -190,7 +188,7 @@ async def record_click(db: AsyncSession, short_code: str, request_info: Request)
             region=region,
             device=device_type,
             browser=browser_info,
-            os=os_info           
+            os=os_info,
         )
         db.add(click)
         await db.commit()
@@ -220,12 +218,12 @@ async def bulk_create(db: AsyncSession, request: BulkCreateRequest):
     if len(request.links) > settings.MAX_BULK_ITEMS:
         raise HTTPException(
             status_code=400,
-            detail=f"Exceeds bulk limit of {settings.MAX_BULK_ITEMS} for links"
+            detail=f"Exceeds bulk limit of {settings.MAX_BULK_ITEMS} for links",
         )
-    
+
     created = []
     failed = []
-    
+
     for link in request.links:
         try:
             link = await create_short_link(
@@ -238,11 +236,5 @@ async def bulk_create(db: AsyncSession, request: BulkCreateRequest):
             )
             created.append(link)
         except HTTPException as e:
-            failed.append({
-                "url": link.original_url,
-                "reason": e.detail
-            })
-    return {
-        "created": created,
-        "failed": failed
-    }
+            failed.append({"url": link.original_url, "reason": e.detail})
+    return {"created": created, "failed": failed}
