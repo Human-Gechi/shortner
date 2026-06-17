@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     SECRET_KEY: SecretStr
     DOMAIN: str
 
+    POSTGRES_USER: str      
+    POSTGRES_PASSWORD: str  
+    POSTGRES_DB: str       
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
+
     # runtime
     ENV: str = "development"
     LOG_LEVEL: str = "INFO"
@@ -30,7 +36,7 @@ class Settings(BaseSettings):
     GEOIP_DB_PATH: str = None
     SALT: str = Field(..., min_length=16)
 
-    model_config = ConfigDict(env_file=".env", frozen=True)
+    model_config = ConfigDict(env_file=".env", extra="ignore")
 
 
 @lru_cache()

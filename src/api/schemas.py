@@ -11,7 +11,6 @@ class CreateLinkRequest(BaseModel):
     original_url: HttpUrl = Field(..., description="The long URL to shorten")
     custom_alias: Optional[str] = Field(default=None, min_length=3, max_length=30)
     expires_at: Optional[datetime] = Field(default=None)
-    title: Optional[str] = Field(default=None, max_length=200)
     max_clicks: Optional[int] = Field(default=None, ge=1)
     password: Optional[str] = Field(default=None, min_length=4, max_length=100)
 
