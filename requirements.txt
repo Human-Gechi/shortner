@@ -7,3 +7,7 @@ pydantic
 python-dotenv
 pytest
 httpx
+pydantic_settings
+geoip2
+argon2-cffi
+user-agents

@@ -76,7 +76,6 @@ async def health():
         logger.error("Failed to access database")
     try:
         redis_ping = r.ping()
-        await r.close()
         if redis_ping:
             health_check["services"]["redis"] = "healthy"
         else:
