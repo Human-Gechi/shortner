@@ -131,9 +131,19 @@ async def resolve_link(db: AsyncSession, short_code: str, request_info: Request)
 
 async def record_click(db: AsyncSession, short_code: str, request_info: Request):
     try:
-        raw_ip = request_info.get("ip")
-        ua_string = request_info.get("user_agent", "")
-        referer = request_info.get("referer")
+        x_forwarded_for = request_info.headers.get("X-Forwarded-For")
+        if x_forwarded_for:
+            raw_ip = x_forwarded_for.split(",")[0].strip()
+        else:
+            raw_ip = request_info.client.host if request_info.client else "unknown"
+
+        ua_string = request_info.headers.get("user-agent", "")
+        referer = request_info.headers.get("referer") 
+
+        logger.info(f"Recorded click from IP: {raw_ip}, UA: {ua_string}, Referer: {referer}")
+
+    except Exception as e:
+        logger.error(f"Failed to record click: {e}")
 
         if not raw_ip:
             logging.warning(f"Skipping click for {short_code}: No IP provided.")
@@ -191,12 +201,10 @@ async def record_click(db: AsyncSession, short_code: str, request_info: Request)
             os=os_info,
         )
         db.add(click)
-        await db.commit()
-        await db.refresh(click)
 
-        ClickCounter.record_click(short_code)
+        result = await db.execute(select(Link).filter(Link.code == short_code))
+        link = result.scalars().first()
 
-        link = Link.query.filter_by(code=short_code).first()
         if link:
             link.click_count += 1
 
@@ -205,7 +213,11 @@ async def record_click(db: AsyncSession, short_code: str, request_info: Request)
             if is_new_visitor:
                 link.unique_visitor_count += 1
 
-        db.commit()
+        await db.commit()
+        await db.refresh(click)
+
+        ClickCounter.record_click(short_code)
+        
         logger.info(f"Recorded click for {short_code} from {country_code}")
 
     except Exception as e:
