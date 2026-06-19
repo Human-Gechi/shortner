@@ -1,5 +1,4 @@
 import hashlib
-import logging
 import os
 import geoip2.database
 
@@ -129,63 +128,67 @@ async def resolve_link(db: AsyncSession, short_code: str, request_info: Request)
     return destination
 
 
-async def record_click(db: AsyncSession, short_code: str, request_info: Request):
+async def record_click(
+    db: AsyncSession,
+    short_code: str,
+    request_info: Request,
+):
     try:
         x_forwarded_for = request_info.headers.get("X-Forwarded-For")
+
         if x_forwarded_for:
             raw_ip = x_forwarded_for.split(",")[0].strip()
         else:
             raw_ip = request_info.client.host if request_info.client else "unknown"
 
-        ua_string = request_info.headers.get("user-agent", "")
-        referer = request_info.headers.get("referer") 
-
-        logger.info(f"Recorded click from IP: {raw_ip}, UA: {ua_string}, Referer: {referer}")
-
-    except Exception as e:
-        logger.error(f"Failed to record click: {e}")
-
         if not raw_ip:
-            logging.warning(f"Skipping click for {short_code}: No IP provided.")
+            logger.warning(f"Skipping click recording for {short_code}: No IP found.")
             return
+
+        ua_string = request_info.headers.get("user-agent", "")
+        referer = request_info.headers.get("referer")
+
+        logger.info(f"Recording click | Code={short_code} | IP={raw_ip}")
 
         ip_hash = hashlib.sha256(f"{raw_ip}{settings.SALT}".encode("utf-8")).hexdigest()
 
         user_agent = parse(ua_string)
-        device_type = (
-            "Mobile"
-            if user_agent.is_mobile
-            else "Tablet"
-            if user_agent.is_tablet
-            else "Desktop"
-        )
+
+        if user_agent.is_mobile:
+            device_type = "Mobile"
+        elif user_agent.is_tablet:
+            device_type = "Tablet"
+        else:
+            device_type = "Desktop"
+
         browser_info = (
             f"{user_agent.browser.family} {user_agent.browser.version_string}"
         )
+
         os_info = f"{user_agent.os.family} {user_agent.os.version_string}"
 
+        country = None
         country_code = None
+        city = None
+        region = None
+
         if settings.GEOIP_DB_PATH and os.path.exists(settings.GEOIP_DB_PATH):
             try:
                 with geoip2.database.Reader(settings.GEOIP_DB_PATH) as reader:
-                    response = reader.city(ip_address=raw_ip)
+                    response = reader.city(raw_ip)
+
                     country = response.country.name
                     country_code = response.country.iso_code
-                    city = response.city.name if response.city else None
-                    region = (
-                        response.subdivisions.most_specific.name
-                        if response.subdivisions
-                        else None
-                    )
+                    city = response.city.name
 
-            except GeoIP2Error:
-                country = None
-                country_code = None
-                city = None
-                region = None
+                    if response.subdivisions:
+                        region = response.subdivisions.most_specific.name
+
+            except GeoIP2Error as e:
+                logger.warning(f"GeoIP lookup failed for {raw_ip}: {e}")
 
             except Exception as e:
-                logging.error(f"GeoIP Error: {e}")
+                logger.error(f"Unexpected GeoIP error: {e}")
 
         click = Click(
             link_code=short_code,
@@ -196,19 +199,24 @@ async def record_click(db: AsyncSession, short_code: str, request_info: Request)
             country_code=country_code,
             city=city,
             region=region,
-            device=device_type,
+            device_type=device_type,
             browser=browser_info,
             os=os_info,
         )
+
         db.add(click)
 
-        result = await db.execute(select(Link).filter(Link.code == short_code))
-        link = result.scalars().first()
+        result = await db.execute(select(Link).where(Link.code == short_code))
+
+        link = result.scalar_one_or_none()
 
         if link:
             link.click_count += 1
 
-            is_new_visitor = UniqueVisitorTracker.record(short_code, ip_hash)
+            is_new_visitor = UniqueVisitorTracker.record(
+                short_code,
+                ip_hash,
+            )
 
             if is_new_visitor:
                 link.unique_visitor_count += 1
@@ -217,13 +225,16 @@ async def record_click(db: AsyncSession, short_code: str, request_info: Request)
         await db.refresh(click)
 
         ClickCounter.record_click(short_code)
-        
-        logger.info(f"Recorded click for {short_code} from {country_code}")
+
+        logger.info(f"Successfully recorded click for {short_code}")
 
     except Exception as e:
-        logger.error(f"Failed to record click for {short_code}: {e}")
-        if "db" in locals():
-            db.rollback()
+        logger.exception(f"Failed to record click for {short_code}: {e}")
+
+        try:
+            await db.rollback()
+        except Exception:
+            pass
 
 
 async def bulk_create(db: AsyncSession, request: BulkCreateRequest):

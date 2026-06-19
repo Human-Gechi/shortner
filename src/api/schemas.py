@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from pydantic import BaseModel, AnyUrl, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 # data coming IN from the client
 
@@ -34,7 +34,7 @@ class CreateLinkRequest(BaseModel):
         if v:
             if v.tzinfo is None:
                 v = v.replace(tzinfo=timezone.utc)
-                
+
             if v <= datetime.now(timezone.utc):
                 raise ValueError("expires_at must be a future datetime")
 
