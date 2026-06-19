@@ -28,7 +28,7 @@ class Link(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    password_hash = Column(String(64), nullable=True)
+    password_hash = Column(String(255), nullable=True)
 
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -2,13 +2,13 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from pydantic import BaseModel, HttpUrl, Field, field_validator, ConfigDict
+from pydantic import BaseModel, AnyUrl, Field, field_validator, ConfigDict
 
 # data coming IN from the client
 
 
 class CreateLinkRequest(BaseModel):
-    original_url: HttpUrl = Field(..., description="The long URL to shorten")
+    original_url: str = Field(..., description="The long URL to shorten")
     custom_alias: Optional[str] = Field(default=None, min_length=3, max_length=30)
     expires_at: Optional[datetime] = Field(default=None)
     max_clicks: Optional[int] = Field(default=None, ge=1)
@@ -31,8 +31,13 @@ class CreateLinkRequest(BaseModel):
     @field_validator("expires_at")
     @classmethod
     def expiry_must_be_future(cls, v):
-        if v and v <= datetime.now(timezone.utc):
-            raise ValueError("expires_at must be a future datetime")
+        if v:
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
+                
+            if v <= datetime.now(timezone.utc):
+                raise ValueError("expires_at must be a future datetime")
+
         return v
 
 

@@ -5,6 +5,8 @@ from src.app_models.models import Link
 from src.cache.redis_client import r, LinkCache, RateLimiter
 from sqlalchemy import text, select
 import asyncio
+from src.config import get_settings
+import redis
 from src.app_models.database import async_engine, Base
 from contextlib import asynccontextmanager
 from src.log import get_logger
@@ -25,6 +27,7 @@ from src.services.analytics_service import (
 
 logger = get_logger("app")
 
+settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,32 +69,38 @@ async def health():
         "status": "healthy",
         "services": {"redis": "unhealthy", "database": "unhealthy"},
     }
+    
     try:
         async for session in get_db():
             result = await session.execute(text("SELECT 1"))
             if result:
                 health_check["services"]["database"] = "healthy"
                 logger.info(f"Database response verified: {result.scalar()}")
-    except Exception:
-        logger.error("Failed to access database")
+    except Exception as e:
+        logger.error(f"Failed to access database: {e}")
+
     try:
-        redis_ping = r.ping()
-        if redis_ping:
+        temp_r = redis.Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
+        
+        if temp_r.ping():
             health_check["services"]["redis"] = "healthy"
-        else:
-            health_check["status"] = "unhealthy"
-    except Exception:
-        logger.error("Redis health check failed")
+            
+        temp_r.close()
+    except Exception as e:
+        logger.error(f"Redis health check failed: {e}")
 
-    health_check["status"] = "unhealthy"
-
+    if (
+        health_check["services"]["database"] == "unhealthy" 
+        or health_check["services"]["redis"] == "unhealthy"
+    ):
+        health_check["status"] = "unhealthy"
+        
     if health_check["status"] == "unhealthy":
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=health_check
         )
 
     return health_check
-
 
 @app.post("/links", response_model=LinkResponse)
 async def create_link(
@@ -111,7 +120,7 @@ async def create_link(
     return link
 
 
-@app.get("/code")
+@app.get("/{code}")
 async def redirect(
     code: str,
     request: Request,
