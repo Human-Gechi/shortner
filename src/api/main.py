@@ -2,8 +2,9 @@ from fastapi import FastAPI, status, HTTPException, Depends, BackgroundTasks, Re
 from fastapi.responses import RedirectResponse, JSONResponse
 from src.dependencies.database import get_db
 from src.app_models.models import Link
-from src.cache.redis_client import r, LinkCache, RateLimiter
+from src.cache.redis_client import LinkCache, RateLimiter
 from sqlalchemy import text, select
+from datetime import datetime, timedelta, timezone
 import asyncio
 from src.config import get_settings
 import redis
@@ -28,6 +29,7 @@ from src.services.analytics_service import (
 logger = get_logger("app")
 
 settings = get_settings()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -69,7 +71,7 @@ async def health():
         "status": "healthy",
         "services": {"redis": "unhealthy", "database": "unhealthy"},
     }
-    
+
     try:
         async for session in get_db():
             result = await session.execute(text("SELECT 1"))
@@ -81,20 +83,20 @@ async def health():
 
     try:
         temp_r = redis.Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
-        
+
         if temp_r.ping():
             health_check["services"]["redis"] = "healthy"
-            
+
         temp_r.close()
     except Exception as e:
         logger.error(f"Redis health check failed: {e}")
 
     if (
-        health_check["services"]["database"] == "unhealthy" 
+        health_check["services"]["database"] == "unhealthy"
         or health_check["services"]["redis"] == "unhealthy"
     ):
         health_check["status"] = "unhealthy"
-        
+
     if health_check["status"] == "unhealthy":
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=health_check
@@ -102,10 +104,18 @@ async def health():
 
     return health_check
 
+
 @app.post("/links", response_model=LinkResponse)
 async def create_link(
     link_body: CreateLinkRequest, request: Request, db: AsyncSession = Depends(get_db)
 ):
+    if link_body.expires_at is None:
+        final_expiry = datetime.now(timezone.utc) + timedelta(
+            seconds=settings.MAX_TTL_SECONDS
+        )
+    else:
+        final_expiry = link_body.expires_at
+
     ip = request.client.host
     if not RateLimiter.is_allowed(ip):
         raise HTTPException(status_code=429, detail="Too Many Requests")
@@ -114,7 +124,7 @@ async def create_link(
         original_url=link_body.original_url,
         custom_alias=link_body.custom_alias,
         password=link_body.password,
-        expires_at=link_body.expires_at,
+        expires_at=final_expiry,
         max_clicks=link_body.max_clicks,
     )
     return link
@@ -130,9 +140,19 @@ async def redirect(
     ip = request.client.host
     if not RateLimiter.is_allowed(ip):
         raise HTTPException(status_code=429, detail="Too Many Requests")
-    resolve_code = await resolve_link(db, code, request)
-    backgound_task.add_task(record_click, db, code, request)
-    return RedirectResponse(url=resolve_code, status_code=301)
+
+    cached_url = LinkCache.get_destination(code)
+
+    query = await db.execute(select(Link).where(Link.code == code, Link.is_active))
+    link = query.scalar_one_or_none()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found or deactivated")
+
+    if cached_url:
+        resolve_code = await resolve_link(db, code, request)
+        await record_click(db, code, request)
+        return RedirectResponse(url=resolve_code, status_code=307)
 
 
 @app.get("/links/{code}/analytics")
@@ -157,12 +177,13 @@ async def delete_link(code: str, db: AsyncSession = Depends(get_db)):
     if not link:
         raise HTTPException(status_code=401, detail="Link Not Found")
 
-    link.is_active = False
+    if link.expires_at > datetime.now(timezone.utc):
+        link.is_active = False
 
     await db.commit()
     LinkCache.invalidate(code)
 
-    return {"Message": f"Link {code} has been deactivated"}
+    return {"Message": f"Link with short code: {code} has been deactivated"}
 
 
 @app.post("/links/bulk")

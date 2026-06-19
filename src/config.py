@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     SECRET_KEY: SecretStr
     DOMAIN: str
 
-    POSTGRES_USER: str      
-    POSTGRES_PASSWORD: str  
-    POSTGRES_DB: str       
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
     POSTGRES_HOST: str
     POSTGRES_PORT: int
 
