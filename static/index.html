@@ -1,0 +1,697 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0D1117;
+    --surface: #161B22;
+    --surface2: #21262D;
+    --border: #30363D;
+    --accent: #58A6FF;
+    --accent-dim: #1f3a5f;
+    --green: #3FB950;
+    --green-dim: #1a3625;
+    --red: #F85149;
+    --red-dim: #3d1a19;
+    --amber: #E3B341;
+    --amber-dim: #3d2e12;
+    --text: #E6EDF3;
+    --text2: #8B949E;
+    --text3: #6E7681;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+  .app { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-brand { padding: 0 20px 24px; border-bottom: 1px solid var(--border); }
+  .brand-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .brand-icon i { color: #0D1117; font-size: 18px; }
+  .brand-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: 0.5px; }
+  .brand-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .sidebar-nav { padding: 16px 12px; flex: 1; }
+  .nav-section { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; padding: 0 8px; margin-bottom: 8px; margin-top: 16px; }
+  .nav-section:first-child { margin-top: 0; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius); color: var(--text2); cursor: pointer; font-size: 13px; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+  .nav-item i { font-size: 16px; width: 16px; }
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
+  .health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .health-label { font-size: 12px; color: var(--text3); }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 56px; border-bottom: 1px solid var(--border); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; background: var(--surface); }
+  .topbar-title { font-size: 15px; font-weight: 500; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; font-family: var(--mono); }
+  .badge-green { background: var(--green-dim); color: var(--green); }
+  .badge-amber { background: var(--amber-dim); color: var(--amber); }
+  .badge-red { background: var(--red-dim); color: var(--red); }
+  .content { flex: 1; overflow-y: auto; padding: 28px; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+  .card-sm { padding: 16px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .card-title-lg { font-size: 15px; font-weight: 600; color: var(--text); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Stat card */
+  .stat-value { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--text); }
+  .stat-label { font-size: 12px; color: var(--text3); margin-top: 4px; }
+  .stat-delta { font-size: 12px; font-family: var(--mono); margin-top: 8px; }
+  .stat-delta.up { color: var(--green); }
+  .stat-delta.down { color: var(--red); }
+
+  /* Form elements */
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px; letter-spacing: 0.3px; text-transform: uppercase; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text3); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: var(--sans); }
+  .btn-primary { background: var(--accent); color: #0D1117; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid transparent; }
+  .btn-danger:hover { border-color: var(--red); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-full { width: 100%; justify-content: center; }
+
+  /* Code chip */
+  .code-chip { display: inline-flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--accent); border-radius: var(--radius); padding: 10px 16px; font-family: var(--mono); font-size: 14px; color: var(--accent); }
+  .code-chip .copy-btn { background: none; border: none; color: var(--text3); cursor: pointer; padding: 0; font-size: 16px; transition: color 0.15s; }
+  .code-chip .copy-btn:hover { color: var(--accent); }
+
+  /* Result box */
+  .result-box { background: var(--green-dim); border: 1px solid var(--green); border-radius: var(--radius-lg); padding: 20px; }
+  .result-box .result-label { font-size: 11px; font-weight: 600; color: var(--green); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .result-url { font-family: var(--mono); font-size: 13px; color: var(--text2); word-break: break-all; margin-top: 8px; }
+
+  /* Error box */
+  .error-box { background: var(--red-dim); border: 1px solid var(--red); border-radius: var(--radius); padding: 12px 16px; font-size: 13px; color: var(--red); margin-top: 12px; display: flex; align-items: center; gap: 8px; }
+
+  /* Table */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 12px 10px; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface2); }
+  .code-cell { font-family: var(--mono); color: var(--accent); font-size: 13px; }
+
+  /* Progress bar */
+  .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+
+  /* Tab switcher */
+  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface2); border-radius: var(--radius); width: fit-content; }
+  .tab { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; color: var(--text3); border: none; background: none; font-family: var(--sans); transition: all 0.15s; }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--border); }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* Textarea */
+  textarea.form-input { resize: vertical; min-height: 100px; font-family: var(--mono); }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--surface2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Analytics */
+  .chart-wrap { position: relative; height: 200px; }
+  .breakdown-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-label { font-size: 13px; color: var(--text2); flex: 1; }
+  .breakdown-count { font-family: var(--mono); font-size: 13px; color: var(--text); min-width: 40px; text-align: right; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 20px; }
+  .empty i { font-size: 40px; color: var(--text3); margin-bottom: 12px; display: block; }
+  .empty p { color: var(--text3); font-size: 13px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  .tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-family: var(--mono); font-size: 11px; color: var(--text3); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon"><i class="ti ti-link" aria-hidden="true"></i></div>
+      <div class="brand-name">human.ly</div>
+      <div class="brand-sub">URL Shortener</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <button class="nav-item active" onclick="setPage('dashboard')"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard</button>
+      <div class="nav-section">Create</div>
+      <button class="nav-item" onclick="setPage('shorten')"><i class="ti ti-plus" aria-hidden="true"></i> Shorten URL</button>
+      <button class="nav-item" onclick="setPage('bulk')"><i class="ti ti-stack-2" aria-hidden="true"></i> Bulk Create</button>
+      <div class="nav-section">Inspect</div>
+      <button class="nav-item" onclick="setPage('analytics')"><i class="ti ti-chart-bar" aria-hidden="true"></i> Analytics</button>
+      <button class="nav-item" onclick="setPage('health')"><i class="ti ti-activity" aria-hidden="true"></i> Health Check</button>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="health-dot" id="sidebar-dot"></span>
+      <span class="health-label" id="sidebar-status">Checking…</span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div class="topbar-actions">
+        <span class="badge badge-green" id="env-badge"><i class="ti ti-circle-filled" style="font-size:8px"></i> v1.0.0</span>
+      </div>
+    </header>
+    <div class="content" id="content-root"></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+
+let currentPage = 'dashboard';
+let chartInstance = null;
+const navItems = document.querySelectorAll('.nav-item');
+
+function setPage(page) {
+  currentPage = page;
+  navItems.forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.getAttribute('onclick')?.includes(page)) el.classList.add('active');
+  });
+  const titles = { dashboard: 'Dashboard', shorten: 'Shorten URL', bulk: 'Bulk Create', analytics: 'Analytics', health: 'Health Check' };
+  document.getElementById('page-title').textContent = titles[page] || page;
+  render(page);
+}
+
+function render(page) {
+  const root = document.getElementById('content-root');
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const pages = { dashboard: renderDashboard, shorten: renderShorten, bulk: renderBulk, analytics: renderAnalytics, health: renderHealth };
+  if (pages[page]) pages[page](root);
+}
+
+async function apiFetch(path, opts = {}) {
+  const url = API + path;
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) }, ...opts });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+  return data;
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const icon = btn.querySelector('i');
+    icon.className = 'ti ti-check';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { icon.className = 'ti ti-copy'; btn.style.color = ''; }, 1500);
+  });
+}
+
+/* ───── DASHBOARD ───── */
+function renderDashboard(root) {
+  root.innerHTML = `
+    <div class="stack">
+      <div class="grid-4">
+        <div class="card card-sm"><div class="stat-label">Total Links</div><div class="stat-value" id="d-links">—</div></div>
+        <div class="card card-sm"><div class="stat-label">All-time Clicks</div><div class="stat-value" id="d-clicks">—</div></div>
+        <div class="card card-sm"><div class="stat-label">Active Links</div><div class="stat-value" id="d-active">—</div></div>
+        <div class="card card-sm"><div class="stat-label">Avg Clicks / Link</div><div class="stat-value" id="d-avg">—</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title-lg">Recent Links</span>
+          <button class="btn btn-ghost btn-sm" onclick="setPage('shorten')"><i class="ti ti-plus" aria-hidden="true"></i> New</button>
+        </div>
+        <div id="d-table-wrap"><div class="empty"><span class="spinner"></span></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title-lg">Quick Deactivate</span></div>
+        <p style="font-size:13px;color:var(--text3);margin-bottom:14px;">Deactivate any link immediately by short code.</p>
+        <div style="display:flex;gap:10px;">
+          <input class="form-input" id="del-code" placeholder="short-code" style="flex:1" />
+          <button class="btn btn-danger" onclick="doDelete()"><i class="ti ti-trash" aria-hidden="true"></i> Deactivate</button>
+        </div>
+        <div id="del-msg" style="margin-top:10px;"></div>
+      </div>
+    </div>`;
+  loadDashboard();
+}
+
+async function loadDashboard() {
+  try {
+    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
+    document.getElementById('d-links').textContent = links.length;
+    const totalClicks = links.reduce((s, l) => s + (l.click_count || 0), 0);
+    document.getElementById('d-clicks').textContent = totalClicks.toLocaleString();
+    const active = links.filter(l => l.is_active).length;
+    document.getElementById('d-active').textContent = active;
+    document.getElementById('d-avg').textContent = links.length ? Math.round(totalClicks / links.length) : '—';
+
+    const wrap = document.getElementById('d-table-wrap');
+    if (!links.length) {
+      wrap.innerHTML = `<div class="empty"><i class="ti ti-link-off"></i><p>No links yet. <a href="#" onclick="setPage('shorten');return false;" style="color:var(--accent)">Create one</a> to get started.</p></div>`;
+      return;
+    }
+    wrap.innerHTML = `<table class="data-table">
+      <thead><tr><th>Code</th><th>Original URL</th><th>Clicks</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+      <tbody>
+        ${links.slice(-10).reverse().map(l => `
+          <tr>
+            <td class="code-cell">${l.code}</td>
+            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${l.original_url}</td>
+            <td><span class="tag">${l.click_count || 0}</span></td>
+            <td><span class="badge ${l.is_active ? 'badge-green' : 'badge-red'}">${l.is_active ? 'Active' : 'Inactive'}</span></td>
+            <td style="font-size:12px;color:var(--text3);">${l.expires_at ? new Date(l.expires_at).toLocaleDateString() : '—'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="setPage('analytics');document.getElementById('ana-code-input').value='${l.code}';loadAnalytics('${l.code}')"><i class="ti ti-chart-bar"></i></button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } catch(e) { console.warn(e); }
+}
+
+async function doDelete() {
+  const code = document.getElementById('del-code').value.trim();
+  if (!code) return;
+  const msg = document.getElementById('del-msg');
+  msg.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await apiFetch(`/links/${code}`, { method: 'DELETE' });
+    msg.innerHTML = `<div class="badge badge-green" style="display:inline-flex"><i class="ti ti-check"></i> ${res.Message || 'Deactivated'}</div>`;
+    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
+    links = links.map(l => l.code === code ? {...l, is_active: false} : l);
+    localStorage.setItem('snip_links', JSON.stringify(links));
+  } catch(e) {
+    msg.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  }
+}
+
+/* ───── SHORTEN ───── */
+function renderShorten(root) {
+  root.innerHTML = `
+    <div class="grid-2" style="gap:24px;align-items:start">
+      <div class="stack">
+        <div class="card">
+          <div class="card-header"><span class="card-title-lg">Create Short Link</span></div>
+
+          <div class="form-group">
+            <label class="form-label">Destination URL *</label>
+            <input class="form-input" id="s-url" placeholder="https://example.com/very/long/url" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Custom Alias</label>
+              <input class="form-input" id="s-alias" placeholder="my-link" />
+              <div class="form-hint">Letters, numbers, - and _ only</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input class="form-input" id="s-pwd" type="password" placeholder="Optional" />
+              <div class="form-hint">Protect with a password</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Expiry Date</label>
+              <input class="form-input" id="s-exp" type="datetime-local" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Clicks</label>
+              <input class="form-input" id="s-max" type="number" placeholder="Unlimited" min="1" />
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="s-btn" onclick="doShorten()">
+            <i class="ti ti-scissors" aria-hidden="true"></i> Shorten
+          </button>
+          <div id="s-error" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div id="s-result" style="display:none" class="card" style="border-color:var(--green)">
+          <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;"><i class="ti ti-check-circle" style="font-size:14px"></i> Link Created</div>
+          <div class="form-label" style="margin-bottom:8px;">Short URL</div>
+          <div class="code-chip" style="margin-bottom:16px;">
+            <span id="r-short"></span>
+            <button class="copy-btn" id="r-copy-btn" onclick="copyText(document.getElementById('r-short').textContent, this)" aria-label="Copy short URL"><i class="ti ti-copy"></i></button>
+          </div>
+          <div class="form-label" style="margin-bottom:4px;">Original</div>
+          <div class="result-url" id="r-orig"></div>
+          <div class="divider"></div>
+          <div style="display:flex;gap:12px;">
+            <div><div class="form-label">Code</div><div class="tag" id="r-code" style="margin-top:4px;font-size:13px;"></div></div>
+            <div><div class="form-label">Expires</div><div style="font-size:13px;color:var(--text2);margin-top:4px;" id="r-exp">—</div></div>
+            <div><div class="form-label">Max Clicks</div><div style="font-size:13px;color:var(--text2);margin-top:4px;" id="r-max">—</div></div>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="btn btn-ghost btn-sm" onclick="setPage('analytics');setTimeout(()=>{document.getElementById('ana-code-input').value=document.getElementById('r-code').textContent;},100)">
+              <i class="ti ti-chart-bar" aria-hidden="true"></i> View Analytics
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px;">Tips</div>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;">
+            <li style="display:flex;gap:10px;align-items:start;font-size:13px;color:var(--text3)"><i class="ti ti-info-circle" style="color:var(--accent);margin-top:2px"></i>UTM parameters are stripped automatically</li>
+            <li style="display:flex;gap:10px;align-items:start;font-size:13px;color:var(--text3)"><i class="ti ti-lock" style="color:var(--accent);margin-top:2px"></i>Passwords use Argon2 — secure by default</li>
+            <li style="display:flex;gap:10px;align-items:start;font-size:13px;color:var(--text3)"><i class="ti ti-clock" style="color:var(--accent);margin-top:2px"></i>Links expire after 1 year if no date is set</li>
+          </ul>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function doShorten() {
+  const url = document.getElementById('s-url').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('s-btn');
+  const err = document.getElementById('s-error');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating…';
+  err.innerHTML = '';
+  document.getElementById('s-result').style.display = 'none';
+
+  const body = { original_url: url };
+  const alias = document.getElementById('s-alias').value.trim();
+  const pwd = document.getElementById('s-pwd').value;
+  const exp = document.getElementById('s-exp').value;
+  const max = document.getElementById('s-max').value;
+  if (alias) body.custom_alias = alias;
+  if (pwd) body.password = pwd;
+  if (exp) body.expires_at = new Date(exp).toISOString();
+  if (max) body.max_clicks = parseInt(max);
+
+  try {
+    const link = await apiFetch('/links', { method: 'POST', body: JSON.stringify(body) });
+    document.getElementById('r-short').textContent = link.short_url;
+    document.getElementById('r-orig').textContent = link.original_url;
+    document.getElementById('r-code').textContent = link.code;
+    document.getElementById('r-exp').textContent = link.expires_at ? new Date(link.expires_at).toLocaleDateString() : '—';
+    document.getElementById('r-max').textContent = link.max_clicks || '—';
+    document.getElementById('s-result').style.display = 'block';
+    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
+    links.push(link);
+    localStorage.setItem('snip_links', JSON.stringify(links));
+  } catch(e) {
+    err.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-scissors"></i> Shorten';
+  }
+}
+
+/* ───── BULK ───── */
+function renderBulk(root) {
+  root.innerHTML = `
+    <div class="stack">
+      <div class="card">
+        <div class="card-header"><span class="card-title-lg">Bulk Create</span><span class="tag">max 100</span></div>
+        <p style="font-size:13px;color:var(--text3);margin-bottom:16px;">Enter one URL per line. All links will use default settings (no alias, no password, 1-year expiry).</p>
+        <div class="form-group">
+          <label class="form-label">URLs (one per line)</label>
+          <textarea class="form-input" id="b-urls" placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3" style="min-height:160px;"></textarea>
+        </div>
+        <button class="btn btn-primary" id="b-btn" onclick="doBulk()"><i class="ti ti-stack-2" aria-hidden="true"></i> Create All</button>
+        <div id="b-error" style="margin-top:10px;"></div>
+      </div>
+      <div id="b-result" style="display:none;" class="stack">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px;">Created <span id="b-count" class="badge badge-green" style="margin-left:6px;">0</span></div>
+          <table class="data-table" id="b-table"><thead><tr><th>Code</th><th>Short URL</th><th>Original</th></tr></thead><tbody id="b-tbody"></tbody></table>
+        </div>
+        <div id="b-failed-wrap" style="display:none;" class="card">
+          <div class="card-title" style="margin-bottom:12px;color:var(--red)">Failed <span id="b-fail-count" class="badge badge-red" style="margin-left:6px;">0</span></div>
+          <table class="data-table"><thead><tr><th>URL</th><th>Reason</th></tr></thead><tbody id="b-fail-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function doBulk() {
+  const raw = document.getElementById('b-urls').value.trim();
+  if (!raw) return;
+  const urls = raw.split('\n').map(u => u.trim()).filter(Boolean);
+  if (!urls.length) return;
+  const btn = document.getElementById('b-btn');
+  const err = document.getElementById('b-error');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating…';
+  err.innerHTML = '';
+  document.getElementById('b-result').style.display = 'none';
+
+  const body = { links: urls.map(u => ({ original_url: u })) };
+  try {
+    const res = await apiFetch('/links/bulk', { method: 'POST', body: JSON.stringify(body) });
+    document.getElementById('b-count').textContent = res.created?.length || 0;
+    document.getElementById('b-tbody').innerHTML = (res.created || []).map(l =>
+      `<tr><td class="code-cell">${l.code}</td><td><span class="tag" style="font-size:11px;">${l.short_url}</span></td><td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.original_url}</td></tr>`).join('');
+    document.getElementById('b-result').style.display = 'flex';
+    if (res.failed?.length) {
+      document.getElementById('b-fail-count').textContent = res.failed.length;
+      document.getElementById('b-fail-tbody').innerHTML = res.failed.map(f =>
+        `<tr><td style="font-size:12px;">${f.url}</td><td style="color:var(--red);font-size:12px;">${f.reason}</td></tr>`).join('');
+      document.getElementById('b-failed-wrap').style.display = 'block';
+    }
+    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
+    links = [...links, ...(res.created || [])];
+    localStorage.setItem('snip_links', JSON.stringify(links));
+  } catch(e) {
+    err.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-stack-2"></i> Create All';
+  }
+}
+
+/* ───── ANALYTICS ───── */
+function renderAnalytics(root) {
+  root.innerHTML = `
+    <div class="stack">
+      <div class="card">
+        <div class="card-header"><span class="card-title-lg">Link Analytics</span></div>
+        <div style="display:flex;gap:10px;">
+          <input class="form-input" id="ana-code-input" placeholder="Enter short code…" style="flex:1;" onkeydown="if(event.key==='Enter')loadAnalytics(document.getElementById('ana-code-input').value.trim())"/>
+          <button class="btn btn-primary" onclick="loadAnalytics(document.getElementById('ana-code-input').value.trim())"><i class="ti ti-search"></i> Fetch</button>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;" id="ana-quick-codes"></div>
+      </div>
+      <div id="ana-output"></div>
+    </div>`;
+
+  const links = JSON.parse(localStorage.getItem('snip_links') || '[]');
+  if (links.length) {
+    const qc = document.getElementById('ana-quick-codes');
+    links.slice(-5).reverse().forEach(l => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-ghost btn-sm';
+      btn.innerHTML = `<i class="ti ti-link"></i> ${l.code}`;
+      btn.onclick = () => { document.getElementById('ana-code-input').value = l.code; loadAnalytics(l.code); };
+      qc.appendChild(btn);
+    });
+  }
+}
+
+async function loadAnalytics(code) {
+  if (!code) return;
+  const out = document.getElementById('ana-output');
+  if (!out) return;
+  out.innerHTML = `<div class="card"><div class="empty"><span class="spinner"></span><p style="margin-top:12px">Loading analytics for <span class="tag">${code}</span>…</p></div></div>`;
+  try {
+    const data = await apiFetch(`/links/${code}/analytics`);
+    renderAnalyticsData(out, code, data);
+  } catch(e) {
+    out.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  }
+}
+
+function renderAnalyticsData(out, code, data) {
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const totalClicks = data.time_series?.reduce((s, p) => s + p.count, 0) || 0;
+  const topCountry = data.top_countries?.[0]?.country || '—';
+  const topDevice = data.device_breakdown?.[0]?.device_type || '—';
+  const topBrowser = data.browser_breakdown?.[0]?.browser || '—';
+
+  out.innerHTML = `
+    <div class="grid-4" style="margin-bottom:16px;">
+      <div class="card card-sm"><div class="stat-label">Total Clicks</div><div class="stat-value">${totalClicks.toLocaleString()}</div></div>
+      <div class="card card-sm"><div class="stat-label">Top Country</div><div class="stat-value" style="font-size:20px;">${topCountry}</div></div>
+      <div class="card card-sm"><div class="stat-label">Top Device</div><div class="stat-value" style="font-size:20px;">${topDevice}</div></div>
+      <div class="card card-sm"><div class="stat-label">Top Browser</div><div class="stat-value" style="font-size:18px;font-family:var(--sans)">${topBrowser.split(' ')[0]}</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="card-title-lg">Clicks over time</span><span class="tag">30 days</span></div>
+      <div class="chart-wrap"><canvas id="time-chart"></canvas></div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">By Country</div>
+        ${(data.top_countries||[]).slice(0,8).map(c => {
+          const pct = totalClicks ? Math.round(c.count / totalClicks * 100) : 0;
+          return `<div class="breakdown-row">
+            <div class="breakdown-label">${c.country || 'Unknown'}</div>
+            <div style="flex:1;margin:0 10px;"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>
+            <div class="breakdown-count">${c.count}</div>
+          </div>`;
+        }).join('') || '<div class="empty" style="padding:20px;"><p>No data yet</p></div>'}
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">By Device</div>
+        ${(data.device_breakdown||[]).map(d => {
+          const pct = totalClicks ? Math.round(d.count / totalClicks * 100) : 0;
+          const icon = d.device_type?.toLowerCase() === 'mobile' ? 'ti-device-mobile' : d.device_type?.toLowerCase() === 'tablet' ? 'ti-device-tablet' : 'ti-device-laptop';
+          return `<div class="breakdown-row">
+            <div class="breakdown-label"><i class="ti ${icon}" style="margin-right:6px;font-size:15px;"></i>${d.device_type||'Unknown'}</div>
+            <div style="flex:1;margin:0 10px;"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--green)"></div></div></div>
+            <div class="breakdown-count">${d.count}</div>
+          </div>`;
+        }).join('') || '<div class="empty" style="padding:20px;"><p>No data yet</p></div>'}
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">By Browser</div>
+        ${(data.browser_breakdown||[]).slice(0,6).map((b,i) => {
+          const pct = totalClicks ? Math.round(b.count / totalClicks * 100) : 0;
+          const colors = ['var(--accent)','var(--green)','var(--amber)','#a371f7','#f0883e','var(--text3)'];
+          return `<div class="breakdown-row">
+            <div class="breakdown-label">${b.browser?.split(' ')[0]||'Unknown'}</div>
+            <div style="flex:1;margin:0 10px;"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[i%colors.length]}"></div></div></div>
+            <div class="breakdown-count">${b.count}</div>
+          </div>`;
+        }).join('') || '<div class="empty" style="padding:20px;"><p>No data yet</p></div>'}
+      </div>
+    </div>`;
+
+  if (data.time_series?.length) {
+    const ctx = document.getElementById('time-chart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.time_series.map(p => new Date(p.date).toLocaleDateString('en-US', {month:'short', day:'numeric'})),
+        datasets: [{
+          label: 'Clicks',
+          data: data.time_series.map(p => p.count),
+          borderColor: '#58A6FF',
+          backgroundColor: 'rgba(88,166,255,0.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#58A6FF',
+          tension: 0.4,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#8B949E', font: { size: 11 } }, grid: { color: '#21262D' } },
+          y: { ticks: { color: '#8B949E', font: { size: 11 } }, grid: { color: '#21262D' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+}
+
+/* ───── HEALTH ───── */
+function renderHealth(root) {
+  root.innerHTML = `
+    <div class="stack" style="max-width:580px;">
+      <div class="card">
+        <div class="card-header"><span class="card-title-lg">System Health</span>
+          <button class="btn btn-ghost btn-sm" onclick="doHealth()"><i class="ti ti-refresh"></i> Refresh</button>
+        </div>
+        <div id="health-out"><div class="empty"><span class="spinner"></span></div></div>
+      </div>
+    </div>`;
+  doHealth();
+}
+
+async function doHealth() {
+  const out = document.getElementById('health-out');
+  if (!out) return;
+  out.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const h = await apiFetch('/health');
+    const db = h.services?.database;
+    const redis = h.services?.redis;
+    out.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface2);border-radius:var(--radius);">
+          <div style="display:flex;align-items:center;gap:10px;"><i class="ti ti-database" style="font-size:20px;color:var(--text3)"></i><div><div style="font-size:13px;font-weight:500;">PostgreSQL</div><div style="font-size:11px;color:var(--text3);">Primary database</div></div></div>
+          <span class="badge ${db === 'healthy' ? 'badge-green' : 'badge-red'}">${db}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface2);border-radius:var(--radius);">
+          <div style="display:flex;align-items:center;gap:10px;"><i class="ti ti-server" style="font-size:20px;color:var(--text3)"></i><div><div style="font-size:13px;font-weight:500;">Redis</div><div style="font-size:11px;color:var(--text3);">Cache & rate limiting</div></div></div>
+          <span class="badge ${redis === 'healthy' ? 'badge-green' : 'badge-red'}">${redis}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface2);border-radius:var(--radius);">
+          <div style="display:flex;align-items:center;gap:10px;"><i class="ti ti-cpu" style="font-size:20px;color:var(--text3)"></i><div><div style="font-size:13px;font-weight:500;">API Server</div><div style="font-size:11px;color:var(--text3);">FastAPI v1.0.0</div></div></div>
+          <span class="badge badge-green">online</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="health-dot"></span>
+        <span style="font-size:13px;color:var(--text2);">Overall status: <strong style="color:${h.status === 'healthy' ? 'var(--green)' : 'var(--red)'};">${h.status}</strong></span>
+      </div>`;
+    document.getElementById('sidebar-dot').style.background = h.status === 'healthy' ? 'var(--green)' : 'var(--red)';
+    document.getElementById('sidebar-status').textContent = h.status === 'healthy' ? 'All systems go' : 'Degraded';
+  } catch(e) {
+    out.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>Health check failed: ${e.message}</div>`;
+    document.getElementById('sidebar-dot').style.background = 'var(--red)';
+    document.getElementById('sidebar-status').textContent = 'Unreachable';
+  }
+}
+
+/* ───── INIT ───── */
+render('dashboard');
+doHealth();
+</script>
+</body>
+</html>

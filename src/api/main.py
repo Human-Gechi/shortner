@@ -1,4 +1,5 @@
 from fastapi import FastAPI, status, HTTPException, Depends, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from src.dependencies.database import get_db
 from src.app_models.models import Link
@@ -6,6 +7,8 @@ from src.cache.redis_client import LinkCache, RateLimiter
 from sqlalchemy import text, select
 from datetime import datetime, timedelta, timezone
 import asyncio
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from src.config import get_settings
 import redis
 from src.app_models.database import async_engine, Base
@@ -58,6 +61,18 @@ app = FastAPI(
     summary="Link Shortner",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/ui")
+async def frontend():
+    return FileResponse("static/index.html")
 
 @app.get("/")
 async def root():
