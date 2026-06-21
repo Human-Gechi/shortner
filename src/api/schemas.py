@@ -67,34 +67,30 @@ class LinkResponse(BaseModel):
 
 
 class TimeSeriesPoint(BaseModel):
-    date: str
-    clicks: int
+    date: datetime
+    count: int
 
 
 class GeoDistribution(BaseModel):
-    country: str
-    clicks: int
-    percentage: float
+    country: Optional[str] = None
+    count: int
 
 
 class DeviceBreakdown(BaseModel):
     device_type: str
-    clicks: int
-    percentage: float
+    count: int
+
+
+class BrowserBreakdown(BaseModel):
+    browser: str
+    count: int
 
 
 class AnalyticsResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    link: LinkResponse
-    total_clicks: int
-    unique_visitors: int
-    clicks_last_7_days: int
-    clicks_last_30_days: int
     time_series: List[TimeSeriesPoint]
     top_countries: List[GeoDistribution]
     device_breakdown: List[DeviceBreakdown]
-    top_referers: List[dict]
+    browser_breakdown: List[BrowserBreakdown]
 
 
 class PaginatedLinksResponse(BaseModel):
