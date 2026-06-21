@@ -1,5 +1,5 @@
-from fastapi import FastAPI, status, HTTPException, Depends, BackgroundTasks, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import FastAPI, status, HTTPException, Depends, Request
+from fastapi.responses import RedirectResponse
 from src.dependencies.database import get_db
 from src.app_models.models import Link
 from src.cache.redis_client import LinkCache, RateLimiter
@@ -12,7 +12,12 @@ from src.app_models.database import async_engine, Base
 from contextlib import asynccontextmanager
 from src.log import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.api.schemas import LinkResponse, CreateLinkRequest, BulkCreateRequest
+from src.api.schemas import (
+    LinkResponse,
+    CreateLinkRequest,
+    BulkCreateRequest,
+    AnalyticsResponse,
+)
 from src.services.url_service import (
     create_short_link,
     resolve_link,
@@ -134,7 +139,6 @@ async def create_link(
 async def redirect(
     code: str,
     request: Request,
-    backgound_task: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     ip = request.client.host
@@ -155,18 +159,31 @@ async def redirect(
         return RedirectResponse(url=resolve_code, status_code=307)
 
 
-@app.get("/links/{code}/analytics")
-async def code_analytics(code: str, db: AsyncSession = Depends(get_db)):
+@app.get("/links/{code}/analytics", response_model=AnalyticsResponse)
+async def code_analytics(code: str):
     analytics = [
-        clicks_by_device(db, code),
-        clicks_by_browser(db, code),
-        clicks_by_country(db, code),
-        clicks_over_time(db, code),
+        clicks_over_time(code),
+        clicks_by_country(code),
+        clicks_by_device(code),
+        clicks_by_browser(code),
     ]
 
-    result = await asyncio.gather(*analytics)
+    result = await asyncio.gather(*analytics, return_exceptions=True)
 
-    return JSONResponse(result)
+    for res in result:
+        if isinstance(res, Exception):
+            raise HTTPException(
+                status_code=500, detail="Error compiling analytics for link"
+            )
+
+    time_series, top_countries, device_breakdown, browser_breakdown = result
+
+    return {
+        "time_series": time_series,
+        "top_countries": top_countries,
+        "device_breakdown": device_breakdown,
+        "browser_breakdown": browser_breakdown,
+    }
 
 
 @app.delete("/links/{code}")
