@@ -2,7 +2,7 @@ from fastapi import FastAPI, status, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from src.dependencies.database import get_db
-from src.app_models.models import Link
+from src.app_models.models import Link, User
 from src.cache.redis_client import LinkCache, RateLimiter
 from sqlalchemy import text, select
 from datetime import datetime, timedelta, timezone
@@ -13,6 +13,7 @@ from src.config import get_settings
 import redis
 from src.app_models.database import async_engine, Base
 from contextlib import asynccontextmanager
+from src.api.auth import get_current_user, router as auth_router
 from src.log import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.schemas import (
@@ -69,7 +70,7 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
+app.include_router(auth_router)
 
 @app.get("/ui")
 async def frontend():
@@ -129,7 +130,10 @@ async def health():
 
 @app.post("/links", response_model=LinkResponse)
 async def create_link(
-    link_body: CreateLinkRequest, request: Request, db: AsyncSession = Depends(get_db)
+    link_body: CreateLinkRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),  
 ):
     if link_body.expires_at is None:
         final_expiry = datetime.now(timezone.utc) + timedelta(
@@ -148,6 +152,7 @@ async def create_link(
         password=link_body.password,
         expires_at=final_expiry,
         max_clicks=link_body.max_clicks,
+        owner_id=current_user.id
     )
     return link
 
@@ -177,7 +182,11 @@ async def redirect(
 
 
 @app.get("/links/{code}/analytics", response_model=AnalyticsResponse)
-async def code_analytics(code: str):
+async def code_analytics(code: str, db: AsyncSession = Depends(get_db),current_user: User = Depends(get_current_user)):
+    query = await db.execute(select(Link).where(Link.code == code))
+    link = query.scalar_one_or_none()
+    if not link or link.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your link")
     analytics = [
         clicks_over_time(code),
         clicks_by_country(code),
@@ -204,12 +213,13 @@ async def code_analytics(code: str):
 
 
 @app.delete("/links/{code}")
-async def delete_link(code: str, db: AsyncSession = Depends(get_db)):
+async def delete_link(code: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = await db.execute(select(Link).where(Link.code == code))
     link = query.scalar_one_or_none()
-
     if not link:
-        raise HTTPException(status_code=401, detail="Link Not Found")
+        raise HTTPException(status_code=404, detail="Link not found")
+    if link.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your link") 
 
     if link.expires_at > datetime.now(timezone.utc):
         link.is_active = False

@@ -54,6 +54,7 @@ async def create_short_link(
     password: str | None = None,
     expires_at: datetime | None = None,
     max_clicks: int | None = None,
+    **kwargs,
 ):
 
     clean_url = normalize_url(original_url)

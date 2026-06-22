@@ -2,10 +2,13 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, EmailStr
 
 # data coming IN from the client
 
+class UserRegisterSchema(BaseModel):
+    email: EmailStr
+    password: str
 
 class CreateLinkRequest(BaseModel):
     original_url: str = Field(..., description="The long URL to shorten")

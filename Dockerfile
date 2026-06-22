@@ -7,6 +7,8 @@ RUN groupadd -r groups && useradd -r -g groups -m notroot
 
 USER notroot
 
+ENV PATH="/home/notroot/.local/bin:${PATH}"
+
 WORKDIR /app
 
 RUN python -m pip install --no-cache-dir --upgrade pip
