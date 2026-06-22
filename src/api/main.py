@@ -70,9 +70,11 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 @app.get("/ui")
 async def frontend():
     return FileResponse("static/index.html")
+
 
 @app.get("/")
 async def root():
