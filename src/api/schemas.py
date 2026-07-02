@@ -2,9 +2,14 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, EmailStr
 
 # data coming IN from the client
+
+
+class UserRegisterSchema(BaseModel):
+    email: EmailStr
+    password: str
 
 
 class CreateLinkRequest(BaseModel):
@@ -12,7 +17,6 @@ class CreateLinkRequest(BaseModel):
     custom_alias: Optional[str] = Field(default=None, min_length=3, max_length=30)
     expires_at: Optional[datetime] = Field(default=None)
     max_clicks: Optional[int] = Field(default=None, ge=1)
-    password: Optional[str] = Field(default=None, min_length=4, max_length=100)
 
     @field_validator("custom_alias")
     @classmethod
@@ -45,14 +49,7 @@ class BulkCreateRequest(BaseModel):
     links: List[CreateLinkRequest] = Field(..., min_length=1, max_length=100)
 
 
-class AccessPasswordRequest(BaseModel):
-    code: str
-    password: str = Field(..., min_length=1)
-
-
 # data going OUT to the client
-
-
 class LinkResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -91,32 +88,3 @@ class AnalyticsResponse(BaseModel):
     top_countries: List[GeoDistribution]
     device_breakdown: List[DeviceBreakdown]
     browser_breakdown: List[BrowserBreakdown]
-
-
-class PaginatedLinksResponse(BaseModel):
-    items: List[LinkResponse]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
-
-
-# internal models used inside the app, never returned directly to clients
-
-
-class CacheEntry(BaseModel):
-    original_url: str
-    is_active: bool
-    expires_at: Optional[str]
-    click_count: int
-    max_clicks: Optional[int]
-    password_hash: Optional[str]
-
-
-class GeoIPResult(BaseModel):
-    ip: str
-    country: Optional[str] = None
-    country_code: Optional[str] = None
-    city: Optional[str] = None
-    region: Optional[str] = None
-    is_success: bool = False

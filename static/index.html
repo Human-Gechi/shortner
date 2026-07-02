@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,6 +32,14 @@
   }
   body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; min-height: 100vh; }
   .app { display: flex; min-height: 100vh; }
+
+  /* Auth Overlay Screen */
+  .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .auth-header { text-align: center; margin-bottom: 24px; }
+  .auth-toggle { display: flex; background: var(--surface2); padding: 4px; border-radius: var(--radius); margin-bottom: 24px; }
+  .auth-toggle-btn { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text3); font-size: 13px; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+  .auth-toggle-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--border); }
 
   /* Sidebar */
   .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; display: flex; flex-direction: column; flex-shrink: 0; }
@@ -78,9 +85,6 @@
   /* Stat card */
   .stat-value { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--text); }
   .stat-label { font-size: 12px; color: var(--text3); margin-top: 4px; }
-  .stat-delta { font-size: 12px; font-family: var(--mono); margin-top: 8px; }
-  .stat-delta.up { color: var(--green); }
-  .stat-delta.down { color: var(--red); }
 
   /* Form elements */
   .form-group { margin-bottom: 16px; }
@@ -109,8 +113,6 @@
   .code-chip .copy-btn:hover { color: var(--accent); }
 
   /* Result box */
-  .result-box { background: var(--green-dim); border: 1px solid var(--green); border-radius: var(--radius-lg); padding: 20px; }
-  .result-box .result-label { font-size: 11px; font-weight: 600; color: var(--green); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
   .result-url { font-family: var(--mono); font-size: 13px; color: var(--text2); word-break: break-all; margin-top: 8px; }
 
   /* Error box */
@@ -127,11 +129,6 @@
   /* Progress bar */
   .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 6px; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
-
-  /* Tab switcher */
-  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface2); border-radius: var(--radius); width: fit-content; }
-  .tab { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; color: var(--text3); border: none; background: none; font-family: var(--sans); transition: all 0.15s; }
-  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--border); }
 
   /* Divider */
   .divider { height: 1px; background: var(--border); margin: 20px 0; }
@@ -172,11 +169,42 @@
 </style>
 </head>
 <body>
+
+<div id="auth-screen" class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="brand-icon" style="margin: 0 auto 12px;"><i class="ti ti-link"></i></div>
+      <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Welcome to human.ly</h2>
+      <p id="auth-subtitle" style="font-size: 13px; color: var(--text3);">Sign in to access your dashboard</p>
+    </div>
+    
+    <div class="auth-toggle">
+      <button id="toggle-login" class="auth-toggle-btn active" onclick="setAuthState('login')">Login</button>
+      <button id="toggle-register" class="auth-toggle-btn" onclick="setAuthState('register')">Register</button>
+    </div>
+
+    <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="auth-email" class="form-input" placeholder="you@example.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="auth-password" class="form-input" placeholder="••••••••" required />
+      </div>
+      <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-full" style="margin-top: 8px;">
+        Sign In
+      </button>
+      <div id="auth-error"></div>
+    </form>
+  </div>
+</div>
+
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="brand-icon"><i class="ti ti-link" aria-hidden="true"></i></div>
-      <div class="brand-name">human.ly</div>
+      <div class="brand-name">Human.ly</div>
       <div class="brand-sub">URL Shortener</div>
     </div>
     <nav class="sidebar-nav">
@@ -188,6 +216,8 @@
       <div class="nav-section">Inspect</div>
       <button class="nav-item" onclick="setPage('analytics')"><i class="ti ti-chart-bar" aria-hidden="true"></i> Analytics</button>
       <button class="nav-item" onclick="setPage('health')"><i class="ti ti-activity" aria-hidden="true"></i> Health Check</button>
+      <div class="nav-section">Account</div>
+      <button class="nav-item" onclick="handleLogout()" style="color: var(--red);"><i class="ti ti-logout" aria-hidden="true"></i> Logout</button>
     </nav>
     <div class="sidebar-footer">
       <span class="health-dot" id="sidebar-dot"></span>
@@ -208,11 +238,100 @@
 
 <script>
 const API = '';
+let currentAuthState = 'login'; // 'login' or 'register'
 
 let currentPage = 'dashboard';
 let chartInstance = null;
 const navItems = document.querySelectorAll('.nav-item');
 
+/* ───── AUTHENTICATION CLIENT LOGIC ───── */
+function checkAuth() {
+  const token = localStorage.getItem('auth_token');
+  const authScreen = document.getElementById('auth-screen');
+  if (!token) {
+    authScreen.style.display = 'flex';
+  } else {
+    authScreen.style.display = 'none';
+  }
+}
+
+function setAuthState(state) {
+  currentAuthState = state;
+  const loginBtn = document.getElementById('toggle-login');
+  const registerBtn = document.getElementById('toggle-register');
+  const submitBtn = document.getElementById('auth-submit-btn');
+  const subtitle = document.getElementById('auth-subtitle');
+  document.getElementById('auth-error').innerHTML = '';
+
+  if (state === 'login') {
+    loginBtn.classList.add('active');
+    registerBtn.classList.remove('active');
+    submitBtn.textContent = 'Sign In';
+    subtitle.textContent = 'Sign in to access your dashboard';
+  } else {
+    registerBtn.classList.add('active');
+    loginBtn.classList.remove('active');
+    submitBtn.textContent = 'Create Account';
+    subtitle.textContent = 'Register an email to start building links';
+  }
+}
+
+async function handleAuthSubmit(event) {
+  event.preventDefault();
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errDiv = document.getElementById('auth-error');
+  const submitBtn = document.getElementById('auth-submit-btn');
+
+  errDiv.innerHTML = '';
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span class="spinner"></span> Working…';
+
+  try {
+    let data;
+    if (currentAuthState === 'login') {
+      // Form fields matching OAuth2PasswordRequestForm standard parameters (form-data urlencoded)
+      const formDetails = new URLSearchParams();
+      formDetails.append('username', email);
+      formDetails.append('password', password);
+
+      const res = await fetch(API + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formDetails
+      });
+      data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Login failed');
+    } else {
+      // JSON structure payload matching custom Pydantic schema
+      const res = await fetch(API + '/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      });
+      data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Registration failed');
+    }
+
+    // Save token received from FastAPI application
+    localStorage.setItem('auth_token', data.access_token);
+    checkAuth();
+    loadDashboard();
+  } catch(e) {
+    errDiv.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = currentAuthState === 'login' ? 'Sign In' : 'Create Account';
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('snip_links'); // Optional local storage clear
+  checkAuth();
+}
+
+/* ───── PAGE NAVIGATION ───── */
 function setPage(page) {
   currentPage = page;
   navItems.forEach(el => el.classList.remove('active'));
@@ -231,10 +350,28 @@ function render(page) {
   if (pages[page]) pages[page](root);
 }
 
+/* ───── UPDATED FETCHING UTILITY TO INCLUDE AUTHENTICATION HEADERS ───── */
 async function apiFetch(path, opts = {}) {
   const url = API + path;
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) }, ...opts });
+  const token = localStorage.getItem('auth_token');
+  
+  const headers = { 
+    'Content-Type': 'application/json',
+    ...(opts.headers || {})
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`; // Append standard Bearer Token auth string automatically
+  }
+
+  const res = await fetch(url, { ...opts, headers: headers });
   const data = await res.json();
+  
+  if (res.status === 401) {
+    handleLogout(); // Auto boot back to login screen if unauthorized session triggers
+    throw new Error("Session expired. Please log back in.");
+  }
+  
   if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
   return data;
 }
@@ -341,17 +478,10 @@ function renderShorten(root) {
             <input class="form-input" id="s-url" placeholder="https://example.com/very/long/url" />
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Custom Alias</label>
-              <input class="form-input" id="s-alias" placeholder="my-link" />
-              <div class="form-hint">Letters, numbers, - and _ only</div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <input class="form-input" id="s-pwd" type="password" placeholder="Optional" />
-              <div class="form-hint">Protect with a password</div>
-            </div>
+          <div class="form-group">
+            <label class="form-label">Custom Alias</label>
+            <input class="form-input" id="s-alias" name="custom_alias" autocomplete="off" placeholder="my-link" />
+            <div class="form-hint">Letters, numbers, - and _ only</div>
           </div>
 
           <div class="form-row">
@@ -399,7 +529,6 @@ function renderShorten(root) {
           <div class="card-title" style="margin-bottom:12px;">Tips</div>
           <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;">
             <li style="display:flex;gap:10px;align-items:start;font-size:13px;color:var(--text3)"><i class="ti ti-info-circle" style="color:var(--accent);margin-top:2px"></i>UTM parameters are stripped automatically</li>
-            <li style="display:flex;gap:10px;align-items:start;font-size:13px;color:var(--text3)"><i class="ti ti-lock" style="color:var(--accent);margin-top:2px"></i>Passwords use Argon2 — secure by default</li>
             <li style="display:flex;gap:10px;align-items:start;font-size:13px;color:var(--text3)"><i class="ti ti-clock" style="color:var(--accent);margin-top:2px"></i>Links expire after 1 year if no date is set</li>
           </ul>
         </div>
@@ -419,11 +548,9 @@ async function doShorten() {
 
   const body = { original_url: url };
   const alias = document.getElementById('s-alias').value.trim();
-  const pwd = document.getElementById('s-pwd').value;
   const exp = document.getElementById('s-exp').value;
   const max = document.getElementById('s-max').value;
   if (alias) body.custom_alias = alias;
-  if (pwd) body.password = pwd;
   if (exp) body.expires_at = new Date(exp).toISOString();
   if (max) body.max_clicks = parseInt(max);
 
@@ -611,27 +738,27 @@ function renderAnalyticsData(out, code, data) {
   if (data.time_series?.length) {
     const ctx = document.getElementById('time-chart').getContext('2d');
     chartInstance = new Chart(ctx, {
-      type: 'line',
+      type: 'bar',
       data: {
         labels: data.time_series.map(p => new Date(p.date).toLocaleDateString('en-US', {month:'short', day:'numeric'})),
         datasets: [{
           label: 'Clicks',
           data: data.time_series.map(p => p.count),
-          borderColor: '#58A6FF',
-          backgroundColor: 'rgba(88,166,255,0.08)',
-          borderWidth: 2,
-          pointRadius: 3,
-          pointBackgroundColor: '#58A6FF',
-          tension: 0.4,
-          fill: true,
+          backgroundColor: '#58A6FF',
+          borderRadius: 4,
+          maxBarThickness: 48,
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#8B949E', font: { size: 11 } }, grid: { color: '#21262D' } },
-          y: { ticks: { color: '#8B949E', font: { size: 11 } }, grid: { color: '#21262D' }, beginAtZero: true }
+          x: { ticks: { color: '#8B949E', font: { size: 11 } }, grid: { display: false } },
+          y: {
+            ticks: { color: '#8B949E', font: { size: 11 }, precision: 0 },
+            grid: { color: '#21262D' },
+            beginAtZero: true,
+          }
         }
       }
     });
@@ -690,6 +817,7 @@ async function doHealth() {
 }
 
 /* ───── INIT ───── */
+checkAuth();
 render('dashboard');
 doHealth();
 </script>

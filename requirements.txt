@@ -11,3 +11,6 @@ pydantic_settings
 geoip2
 argon2-cffi
 user-agents
+python-jose[cryptography]
+pydantic[email]
+python-multipart
