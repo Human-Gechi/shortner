@@ -14,8 +14,6 @@ from src.app_models.models import Link, Click
 from src.config import get_settings
 from src.utils.helpers import (
     normalize_url,
-    verify_password,
-    password_hash,
     generate_code,
 )
 from user_agents import parse
@@ -51,10 +49,9 @@ async def create_short_link(
     original_url: str,
     db: AsyncSession,
     custom_alias: str | None = None,
-    password: str | None = None,
     expires_at: datetime | None = None,
     max_clicks: int | None = None,
-    **kwargs,
+    owner_id: int | None = None,
 ):
 
     clean_url = normalize_url(original_url)
@@ -70,17 +67,15 @@ async def create_short_link(
     else:
         code = await ensure_unique_code(db)
 
-    hashed_pw = password_hash(password) if password else None
-
     short_url = f"{settings.DOMAIN}/{code}"
 
     link = Link(
         code=code,
         short_url=short_url,
         original_url=clean_url,
-        password_hash=hashed_pw,
         expires_at=expires_at,
         max_clicks=max_clicks,
+        owner_id=owner_id,
     )
     db.add(link)
     await db.commit()
@@ -114,15 +109,6 @@ async def resolve_link(db: AsyncSession, short_code: str, request_info: Request)
             raise HTTPException(
                 status_code=410, detail="Link has reached its click limit"
             )
-
-        if link.password_hash:
-            submitted_password = request_info.headers.get("X-Link-Password")
-            if not submitted_password:
-                raise HTTPException(
-                    status_code=401, detail="This link requires a password"
-                )
-            if not verify_password(link.password_hash, submitted_password):
-                raise HTTPException(status_code=401, detail="Wrong password")
 
         destination = link.original_url
 
@@ -222,10 +208,17 @@ async def record_click(
             if is_new_visitor:
                 link.unique_visitor_count += 1
 
+            limit_just_reached = link.max_clicks and link.click_count >= link.max_clicks
+        else:
+            limit_just_reached = False
+
         await db.commit()
         await db.refresh(click)
 
         ClickCounter.record_click(short_code)
+
+        if limit_just_reached:
+            LinkCache.invalidate(short_code)
 
         logger.info(f"Successfully recorded click for {short_code}")
 
@@ -238,7 +231,9 @@ async def record_click(
             pass
 
 
-async def bulk_create(db: AsyncSession, request: BulkCreateRequest):
+async def bulk_create(
+    db: AsyncSession, request: BulkCreateRequest, owner_id: int | None = None
+):
     if len(request.links) > settings.MAX_BULK_ITEMS:
         raise HTTPException(
             status_code=400,
@@ -254,9 +249,9 @@ async def bulk_create(db: AsyncSession, request: BulkCreateRequest):
                 db=db,
                 original_url=link.original_url,
                 custom_alias=link.custom_alias,
-                password=link.password,
                 expires_at=link.expires_at,
                 max_clicks=link.max_clicks,
+                owner_id=owner_id,
             )
             created.append(link)
         except HTTPException as e:

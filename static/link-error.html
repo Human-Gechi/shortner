@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Link unavailable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0D1117; color: #E6EDF3; font-family: 'Inter', sans-serif;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .card {
+    background: #161B22; border: 1px solid #30363D; border-radius: 12px;
+    padding: 40px 36px; max-width: 420px; width: 100%; text-align: center;
+  }
+  .icon {
+    width: 48px; height: 48px; border-radius: 50%; background: #3d1a19; color: #F85149;
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+    font-size: 22px; font-weight: 600;
+  }
+  h1 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  p { font-size: 14px; color: #8B949E; line-height: 1.6; margin-bottom: 4px; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6E7681; display: block; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">!</div>
+    <h1>This link isn't available</h1>
+    <p id="error-message">This link doesn't exist or has been deactivated.</p>
+    <code id="error-status"></code>
+  </div>
+
+  <script>
+    // Read message + status from the query string, e.g.
+    // /static/link-error.html?message=Link+has+expired&status=410
+    const params = new URLSearchParams(window.location.search);
+    const message = params.get('message');
+    const status = params.get('status');
+
+    if (message) {
+      document.getElementById('error-message').textContent = message;
+    }
+    if (status) {
+      document.getElementById('error-status').textContent = 'Status ' + status;
+    }
+  </script>
+</body>
+</html>

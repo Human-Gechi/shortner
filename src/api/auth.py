@@ -24,38 +24,45 @@ def create_token(user_id: int) -> str:
         payload, settings.SECRET_KEY.get_secret_value(), algorithm="HS256"
     )
 
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
-):
+) -> User:
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY.get_secret_value(), algorithms=["HS256"]
         )
         user_id = int(payload["sub"])
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
     return user
 
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(
-    payload: UserRegisterSchema, db: AsyncSession = Depends(get_db)
-):
+async def register(payload: UserRegisterSchema, db: AsyncSession = Depends(get_db)):
 
     existing = await db.execute(select(User).where(User.email == payload.email))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-   
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+        )
+
     user = User(email=payload.email, password_hash=password_hash(payload.password))
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
+
     return {"access_token": create_token(user.id), "token_type": "bearer"}
+
 
 @router.post("/login")
 async def login(
@@ -64,6 +71,8 @@ async def login(
     result = await db.execute(select(User).where(User.email == form.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(user.password_hash, form.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
+
     return {"access_token": create_token(user.id), "token_type": "bearer"}

@@ -1,21 +1,22 @@
 from fastapi import FastAPI, status, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timedelta, timezone
+from contextlib import asynccontextmanager
+import asyncio
+import redis
+from urllib.parse import quote
+
 from src.dependencies.database import get_db
 from src.app_models.models import Link, User
-from src.cache.redis_client import LinkCache, RateLimiter
-from sqlalchemy import text, select
-from datetime import datetime, timedelta, timezone
-import asyncio
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from src.config import get_settings
-import redis
 from src.app_models.database import async_engine, Base
-from contextlib import asynccontextmanager
+from src.cache.redis_client import LinkCache, RateLimiter
+from src.config import get_settings
 from src.api.auth import get_current_user, router as auth_router
 from src.log import get_logger
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.schemas import (
     LinkResponse,
     CreateLinkRequest,
@@ -36,30 +37,25 @@ from src.services.analytics_service import (
 )
 
 logger = get_logger("app")
-
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(" --- Connecting to Database ---")
+    logger.info("--- Connecting to database ---")
     async with async_engine.begin() as conn:
-        logger.info("--- STARTING TABLE CREATION --- ")
         await conn.run_sync(Base.metadata.create_all)
-        logger.info("--- TABLE CREATION COMPLETED --- ")
+        logger.info("--- Tables ready ---")
     yield
-
     await async_engine.dispose()
-
-    logger.info("--- Database Shutdown ---")
+    logger.info("--- Database shut down ---")
 
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Url Shortner with Analytics",
-    description="Processes and tracks user link shortner clicks",
+    title="URL Shortener with Analytics",
+    description="Shorten links, track clicks, and view analytics per user.",
     version="1.0.0",
-    summary="Link Shortner",
 )
 
 app.add_middleware(
@@ -72,6 +68,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth_router)
 
+
 @app.get("/ui")
 async def frontend():
     return FileResponse("static/index.html")
@@ -80,17 +77,18 @@ async def frontend():
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to the Link Shortener & Analytics API",
+        "message": "URL Shortener API",
         "version": "1.0.0",
-        "status": "operational",
-        "documentation": "/docs",
-        "repository": "https://github.com/Human-Gechi/shortner",
+        "docs": "/docs",
     }
+
+
+# health
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health():
-    health_check = {
+    report = {
         "status": "healthy",
         "services": {"redis": "unhealthy", "database": "unhealthy"},
     }
@@ -99,62 +97,145 @@ async def health():
         async for session in get_db():
             result = await session.execute(text("SELECT 1"))
             if result:
-                health_check["services"]["database"] = "healthy"
-                logger.info(f"Database response verified: {result.scalar()}")
+                report["services"]["database"] = "healthy"
     except Exception as e:
-        logger.error(f"Failed to access database: {e}")
+        logger.error(f"Database health check failed: {e}")
 
     try:
-        temp_r = redis.Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
-
-        if temp_r.ping():
-            health_check["services"]["redis"] = "healthy"
-
-        temp_r.close()
+        r = redis.Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
+        if r.ping():
+            report["services"]["redis"] = "healthy"
+        r.close()
     except Exception as e:
         logger.error(f"Redis health check failed: {e}")
 
-    if (
-        health_check["services"]["database"] == "unhealthy"
-        or health_check["services"]["redis"] == "unhealthy"
-    ):
-        health_check["status"] = "unhealthy"
+    if any(v == "unhealthy" for v in report["services"].values()):
+        report["status"] = "unhealthy"
+        raise HTTPException(status_code=503, detail=report)
 
-    if health_check["status"] == "unhealthy":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=health_check
-        )
-
-    return health_check
+    return report
 
 
-@app.post("/links", response_model=LinkResponse)
+# Links for app
+
+
+@app.post("/links", response_model=LinkResponse, status_code=201)
 async def create_link(
-    link_body: CreateLinkRequest,
+    body: CreateLinkRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),  
+    current_user: User = Depends(get_current_user),
 ):
-    if link_body.expires_at is None:
-        final_expiry = datetime.now(timezone.utc) + timedelta(
-            seconds=settings.MAX_TTL_SECONDS
-        )
-    else:
-        final_expiry = link_body.expires_at
-
     ip = request.client.host
     if not RateLimiter.is_allowed(ip):
-        raise HTTPException(status_code=429, detail="Too Many Requests")
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    expires_at = body.expires_at or (
+        datetime.now(timezone.utc) + timedelta(seconds=settings.MAX_TTL_SECONDS)
+    )
+
     link = await create_short_link(
         db=db,
-        original_url=link_body.original_url,
-        custom_alias=link_body.custom_alias,
-        password=link_body.password,
-        expires_at=final_expiry,
-        max_clicks=link_body.max_clicks,
-        owner_id=current_user.id
+        original_url=body.original_url,
+        custom_alias=body.custom_alias,
+        expires_at=expires_at,
+        max_clicks=body.max_clicks,
+        owner_id=current_user.id,
     )
     return link
+
+
+@app.get("/links/me", response_model=list[LinkResponse])
+async def get_my_links(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Link)
+        .where(
+            Link.owner_id == current_user.id,
+            Link.is_active.is_(True),
+        )
+        .order_by(Link.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+@app.post("/links/bulk", status_code=201)
+async def bulk_links(
+    body: BulkCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ip = request.client.host
+    if not RateLimiter.is_allowed(ip):
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    return await bulk_create(db, body, owner_id=current_user.id)
+
+
+@app.delete("/links/{code}")
+async def delete_link(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Link).where(Link.code == code))
+    link = result.scalar_one_or_none()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    if link.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your link")
+
+    link.is_active = False
+    await db.commit()
+    LinkCache.invalidate(code)
+
+    return {"message": f"Link {code} deactivated"}
+
+
+# Application analytics
+
+
+@app.get("/links/{code}/analytics", response_model=AnalyticsResponse)
+async def link_analytics(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Link).where(Link.code == code))
+    link = result.scalar_one_or_none()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    if link.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your link")
+
+    results = await asyncio.gather(
+        clicks_over_time(code),
+        clicks_by_country(code),
+        clicks_by_device(code),
+        clicks_by_browser(code),
+        return_exceptions=True,
+    )
+
+    for r in results:
+        if isinstance(r, Exception):
+            logger.error(f"Analytics error for {code}: {r}")
+            raise HTTPException(status_code=500, detail="Error fetching analytics")
+
+    time_series, top_countries, device_breakdown, browser_breakdown = results
+
+    return {
+        "time_series": time_series,
+        "top_countries": top_countries,
+        "device_breakdown": device_breakdown,
+        "browser_breakdown": browser_breakdown,
+    }
 
 
 @app.get("/{code}")
@@ -165,78 +246,32 @@ async def redirect(
 ):
     ip = request.client.host
     if not RateLimiter.is_allowed(ip):
-        raise HTTPException(status_code=429, detail="Too Many Requests")
+        return RedirectResponse(
+            f"/static/link-error.html?message={quote('Too many requests. Please wait a moment and try again.')}&status=429"
+        )
 
     cached_url = LinkCache.get_destination(code)
-
-    query = await db.execute(select(Link).where(Link.code == code, Link.is_active))
-    link = query.scalar_one_or_none()
-
-    if not link:
-        raise HTTPException(status_code=404, detail="Link not found or deactivated")
-
     if cached_url:
-        resolve_code = await resolve_link(db, code, request)
         await record_click(db, code, request)
-        return RedirectResponse(url=resolve_code, status_code=307)
+        return RedirectResponse(url=cached_url, status_code=307)
 
+    result = await db.execute(
+        select(Link).where(Link.code == code, Link.is_active.is_(True))
+    )
+    link = result.scalar_one_or_none()
 
-@app.get("/links/{code}/analytics", response_model=AnalyticsResponse)
-async def code_analytics(code: str, db: AsyncSession = Depends(get_db),current_user: User = Depends(get_current_user)):
-    query = await db.execute(select(Link).where(Link.code == code))
-    link = query.scalar_one_or_none()
-    if not link or link.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your link")
-    analytics = [
-        clicks_over_time(code),
-        clicks_by_country(code),
-        clicks_by_device(code),
-        clicks_by_browser(code),
-    ]
-
-    result = await asyncio.gather(*analytics, return_exceptions=True)
-
-    for res in result:
-        if isinstance(res, Exception):
-            raise HTTPException(
-                status_code=500, detail="Error compiling analytics for link"
-            )
-
-    time_series, top_countries, device_breakdown, browser_breakdown = result
-
-    return {
-        "time_series": time_series,
-        "top_countries": top_countries,
-        "device_breakdown": device_breakdown,
-        "browser_breakdown": browser_breakdown,
-    }
-
-
-@app.delete("/links/{code}")
-async def delete_link(code: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = await db.execute(select(Link).where(Link.code == code))
-    link = query.scalar_one_or_none()
     if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
-    if link.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your link") 
+        return RedirectResponse(
+            f"/static/link-error.html?message={quote('This link doesn’t exist or has been deactivated.')}&status=404"
+        )
 
-    if link.expires_at > datetime.now(timezone.utc):
-        link.is_active = False
+    try:
+        destination = await resolve_link(db, code, request)
+    except HTTPException as e:
+        detail = e.detail if isinstance(e.detail, str) else "This link isn't available."
+        return RedirectResponse(
+            f"/static/link-error.html?message={quote(detail)}&status={e.status_code}"
+        )
 
-    await db.commit()
-    LinkCache.invalidate(code)
-
-    return {"Message": f"Link with short code: {code} has been deactivated"}
-
-
-@app.post("/links/bulk")
-async def bulks_links(
-    bulk_link: BulkCreateRequest, request: Request, db: AsyncSession = Depends(get_db)
-):
-    ip = request.client.host
-    if not RateLimiter.is_allowed(ip):
-        raise HTTPException(status_code=429, detail="Too Many Requests")
-    bulk = await bulk_create(db, bulk_link)
-
-    return bulk
+    await record_click(db, code, request)
+    return RedirectResponse(url=destination, status_code=307)
