@@ -20,4 +20,4 @@ USER notroot
 ENV PATH="/home/notroot/.local/bin:${PATH}"
 
 
-CMD python src/download.py && python -m your_actual_start_command
+CMD python src/download.py && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
