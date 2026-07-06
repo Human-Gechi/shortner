@@ -102,47 +102,25 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```dotenv
-# --- Database ---
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/url_shortener
-
-# --- Redis ---
-REDIS_URL=redis://localhost:6379/0
-
-# --- Auth ---
-SECRET_KEY=replace-with-a-long-random-secret
-
-# --- Link behavior ---
+SALT=python -c "import secrets; print(secrets.token_hex(32))"
+GEOIP_DB_PATH=your_GEO_DB_PATH
+DATABASE_URL=postgresql+asyncpg://user:password@host:port/db
+REDIS_URL=redis://redis-container:6379/0
+SECRET_KEY=your_secret_key
 DOMAIN=http://localhost:8000
-MAX_TTL_SECONDS=31536000          # default link lifetime if no expiry is set (1 year)
-DEFAULT_CODE_LENGTH=7
-CODE_ALPHABET=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
-RESERVED_ALIASES=api,admin,docs,metrics,health,static
-MAX_BULK_ITEMS=100
 
-# --- Click tracking ---
-SALT=some-random-salt-for-ip-hashing
 
-# --- Optional: GeoIP ---
-GEOIP_DB_PATH=./data/GeoLite2-City.mmdb
+POSTGRES_USER=db_username
+POSTGRES_PASSWORD=db_password
+POSTGRES_DB=your_db
+POSTGRES_PORT=your_port
+POSTGRES_HOST=your_host
 ```
 
 > Generate a strong `SECRET_KEY` with:
 > ```bash
 > python -c "import secrets; print(secrets.token_urlsafe(48))"
 > ```
-
-### 4. Create the database
-
-Make sure the database referenced in `DATABASE_URL` exists:
-
-```bash
-createdb url_shortener
-```
-
-Tables are created automatically on startup (via the app's `lifespan`
-handler, which runs `Base.metadata.create_all`) — no separate migration step
-is required for a fresh setup.
-
 ---
 
 ## Running the app
