@@ -1,7 +1,7 @@
 from functools import lru_cache
-from typing import List, Optional
+from typing import List
 
-from pydantic import AnyUrl, Field, SecretStr, PostgresDsn, RedisDsn
+from pydantic import Field, SecretStr, PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
 
     # runtime
-    ENV: str = "development"
+    ENV: str = "prod"
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "app.log"
 
@@ -31,10 +31,9 @@ class Settings(BaseSettings):
     MAX_TTL_SECONDS: int = Field(default=60 * 60 * 24 * 365)
     RESERVED_ALIASES: List[str] = Field(default_factory=list)
     MAX_BULK_ITEMS: int = Field(default=100)
-
-    BROKER_URL: Optional[AnyUrl] = None
-    GEOIP_DB_PATH: str = None
+   
     SALT: str = Field(..., min_length=16)
+
 
     model_config = ConfigDict(env_file=".env", extra="ignore")
 

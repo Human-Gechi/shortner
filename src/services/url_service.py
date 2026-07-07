@@ -1,9 +1,7 @@
 import hashlib
-import os
-import geoip2.database
+import httpx
 
 from datetime import datetime, timezone
-from geoip2.errors import GeoIP2Error
 from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -115,6 +113,35 @@ async def resolve_link(db: AsyncSession, short_code: str, request_info: Request)
     return destination
 
 
+async def geolocate_ip(ip: str) -> dict:
+    fallback = {"country": None, "country_code": None, "city": None, "region": None}
+
+    if not ip or ip in ("127.0.0.1", "::1", "unknown"):
+        return fallback
+
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(
+                f"http://ip-api.com/json/{ip}",
+                params={"fields": "status,country,countryCode,regionName,city"},
+            )
+            data = resp.json()
+    except Exception as e:
+        logger.warning(f"Geolocation lookup failed for {ip}: {e}")
+        return fallback
+
+    if data.get("status") != "success":
+        logger.warning(f"Geolocation lookup returned no result for {ip}: {data}")
+        return fallback
+
+    return {
+        "country": data.get("country"),
+        "country_code": data.get("countryCode"),
+        "city": data.get("city"),
+        "region": data.get("regionName"),
+    }
+
+
 async def record_click(
     db: AsyncSession,
     short_code: str,
@@ -154,28 +181,11 @@ async def record_click(
 
         os_info = f"{user_agent.os.family} {user_agent.os.version_string}"
 
-        country = None
-        country_code = None
-        city = None
-        region = None
-
-        if settings.GEOIP_DB_PATH and os.path.exists(settings.GEOIP_DB_PATH):
-            try:
-                with geoip2.database.Reader(settings.GEOIP_DB_PATH) as reader:
-                    response = reader.city(raw_ip)
-
-                    country = response.country.name
-                    country_code = response.country.iso_code
-                    city = response.city.name
-
-                    if response.subdivisions:
-                        region = response.subdivisions.most_specific.name
-
-            except GeoIP2Error as e:
-                logger.warning(f"GeoIP lookup failed for {raw_ip}: {e}")
-
-            except Exception as e:
-                logger.error(f"Unexpected GeoIP error: {e}")
+        geo = await geolocate_ip(raw_ip)
+        country = geo["country"]
+        country_code = geo["country_code"]
+        city = geo["city"]
+        region = geo["region"]
 
         click = Click(
             link_code=short_code,
