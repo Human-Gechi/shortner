@@ -1,11 +1,12 @@
 from fastapi import FastAPI, status, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
+from pathlib import Path
 import asyncio
 import redis
 from urllib.parse import quote
@@ -38,6 +39,21 @@ from src.services.analytics_service import (
 
 logger = get_logger("app")
 settings = get_settings()
+
+LINK_PREVIEW_BOTS = (
+    "slackbot",
+    "twitterbot",
+    "facebookexternalhit",
+    "discordbot",
+    "whatsapp",
+    "telegrambot",
+    "linkedinbot",
+    "skypeuripreview",
+    "pinterest",
+    "redditbot",
+    "vkshare",
+)
+
 
 
 @asynccontextmanager
@@ -259,6 +275,27 @@ async def link_analytics(
         "browser_breakdown": browser_breakdown,
     }
 
+def is_link_preview_bot(user_agent: str) -> bool:
+    ua = (user_agent or "").lower()
+    return any(bot in ua for bot in LINK_PREVIEW_BOTS)
+
+
+_BOT_PREVIEW_TEMPLATE = Path("static/bot-preview.html").read_text()
+
+
+def render_generic_preview(code: str) -> str:
+    short_url = f"{settings.DOMAIN}/{code}"
+    og_image_url = f"{settings.DOMAIN}/static/preview-card.png"
+    return (
+        _BOT_PREVIEW_TEMPLATE
+        .replace("__SHORT_URL__", short_url)
+        .replace("__OG_IMAGE_URL__", og_image_url)
+    )
+
+
+def redirect_via_interstitial(destination: str) -> RedirectResponse:
+    return RedirectResponse(f"/static/redirect.html?to={quote(destination, safe='')}")
+
 
 @app.get("/{code}")
 async def redirect(
@@ -266,6 +303,10 @@ async def redirect(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    user_agent = request.headers.get("user-agent", "")
+    if is_link_preview_bot(user_agent):
+        return HTMLResponse(render_generic_preview(code))
+
     ip = request.client.host
     if not RateLimiter.is_allowed(ip):
         return RedirectResponse(
@@ -275,7 +316,7 @@ async def redirect(
     cached_url = LinkCache.get_destination(code)
     if cached_url:
         await record_click(db, code, request)
-        return RedirectResponse(url=cached_url, status_code=307)
+        return redirect_via_interstitial(cached_url)
 
     result = await db.execute(
         select(Link).where(Link.code == code, Link.is_active.is_(True))
@@ -296,4 +337,4 @@ async def redirect(
         )
 
     await record_click(db, code, request)
-    return RedirectResponse(url=destination, status_code=307)
+    return redirect_via_interstitial(destination)

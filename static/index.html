@@ -168,6 +168,12 @@
   }
 
   .tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+  /* Password requirements checklist */
+  .pw-chk { font-size: 11.5px; color: var(--text3); padding-left: 18px; position: relative; transition: color 0.15s; }
+  .pw-chk::before { content: "○"; position: absolute; left: 0; font-size: 10px; top: 1px; }
+  .pw-chk.valid { color: var(--green); }
+  .pw-chk.valid::before { content: "✓"; }
 </style>
 </head>
 <body>
@@ -192,7 +198,17 @@
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" id="auth-password" class="form-input" placeholder="••••••••" required />
+        <div style="position:relative;">
+          <input type="password" id="auth-password" class="form-input" placeholder="••••••••" style="padding-right:40px;" required />
+          <button type="button" id="pw-toggle-btn" onclick="togglePasswordVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;display:flex;">
+            <i class="ti ti-eye" id="pw-toggle-icon"></i>
+          </button>
+        </div>
+        <ul id="pw-checklist" style="list-style:none;margin-top:8px;display:none;flex-direction:column;gap:3px;">
+          <li id="chk-len" class="pw-chk">At least 8 characters</li>
+          <li id="chk-upper" class="pw-chk">One uppercase letter</li>
+          <li id="chk-digit" class="pw-chk">One digit</li>
+        </ul>
       </div>
       <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-full" style="margin-top: 8px;">
         Sign In
@@ -274,18 +290,50 @@ function setAuthState(state) {
   const subtitle = document.getElementById('auth-subtitle');
   document.getElementById('auth-error').innerHTML = '';
 
+  const checklist = document.getElementById('pw-checklist');
+
   if (state === 'login') {
     loginBtn.classList.add('active');
     registerBtn.classList.remove('active');
     submitBtn.textContent = 'Sign In';
     subtitle.textContent = 'Sign in to access your dashboard';
+    checklist.style.display = 'none';
   } else {
     registerBtn.classList.add('active');
     loginBtn.classList.remove('active');
     submitBtn.textContent = 'Create Account';
     subtitle.textContent = 'Register an email to start building links';
+    checklist.style.display = 'flex';
+    updatePasswordChecklist();
   }
 }
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('auth-password');
+  const icon = document.getElementById('pw-toggle-icon');
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  icon.className = showing ? 'ti ti-eye' : 'ti ti-eye-off';
+}
+
+function updatePasswordChecklist() {
+  const value = document.getElementById('auth-password').value;
+  const rules = {
+    'chk-len': value.length >= 8,
+    'chk-upper': /[A-Z]/.test(value),
+    'chk-digit': /[0-9]/.test(value),
+  };
+  let allValid = true;
+  for (const [id, passed] of Object.entries(rules)) {
+    document.getElementById(id).classList.toggle('valid', passed);
+    if (!passed) allValid = false;
+  }
+  return allValid;
+}
+
+document.getElementById('auth-password').addEventListener('input', () => {
+  if (currentAuthState === 'register') updatePasswordChecklist();
+});
 
 async function handleAuthSubmit(event) {
   event.preventDefault();
@@ -295,6 +343,12 @@ async function handleAuthSubmit(event) {
   const submitBtn = document.getElementById('auth-submit-btn');
 
   errDiv.innerHTML = '';
+
+  if (currentAuthState === 'register' && !updatePasswordChecklist()) {
+    errDiv.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>Password doesn't meet the requirements above.</div>`;
+    return;
+  }
+
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="spinner"></span> Working…';
 

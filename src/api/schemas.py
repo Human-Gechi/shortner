@@ -11,7 +11,19 @@ class UserRegisterSchema(BaseModel):
     email: EmailStr
     password: str
 
-
+    @field_validator('password')
+    @classmethod
+    def password_valid(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError("Password cannot be empty")
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        
+        return v
 class CreateLinkRequest(BaseModel):
     original_url: str = Field(..., description="The long URL to shorten")
     custom_alias: Optional[str] = Field(default=None, min_length=3, max_length=30)
