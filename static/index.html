@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Human.ly — Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
@@ -173,7 +175,7 @@
 <div id="auth-screen" class="auth-overlay">
   <div class="auth-card">
     <div class="auth-header">
-      <div class="brand-icon" style="margin: 0 auto 12px;"><i class="ti ti-link"></i></div>
+      <a href="/" style="display:inline-block;margin-bottom:12px;"><div class="brand-icon" style="margin: 0 auto;"><i class="ti ti-link"></i></div></a>
       <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Welcome to human.ly</h2>
       <p id="auth-subtitle" style="font-size: 13px; color: var(--text3);">Sign in to access your dashboard</p>
     </div>
@@ -248,10 +250,19 @@ const navItems = document.querySelectorAll('.nav-item');
 function checkAuth() {
   const token = localStorage.getItem('auth_token');
   const authScreen = document.getElementById('auth-screen');
+  const path = window.location.pathname;
+
   if (!token) {
     authScreen.style.display = 'flex';
-  } else {
-    authScreen.style.display = 'none';
+    // Default the tab to match how the visitor arrived (/login vs /register)
+    setAuthState(path === '/register' ? 'register' : 'login');
+    return;
+  }
+
+  authScreen.style.display = 'none';
+  // Signed in but sitting on a marketing/auth URL -> normalize to /dashboard
+  if (path === '/login' || path === '/register' || path === '/') {
+    window.history.replaceState(null, '', '/dashboard');
   }
 }
 
@@ -315,6 +326,7 @@ async function handleAuthSubmit(event) {
 
     // Save token received from FastAPI application
     localStorage.setItem('auth_token', data.access_token);
+    window.history.replaceState(null, '', '/dashboard');
     checkAuth();
     loadDashboard();
   } catch(e) {
@@ -327,7 +339,9 @@ async function handleAuthSubmit(event) {
 
 function handleLogout() {
   localStorage.removeItem('auth_token');
-  localStorage.removeItem('snip_links'); // Optional local storage clear
+  // NOTE: link history lives in the database (see GET /links/me), not in
+  // localStorage, so there is nothing link-related to clear here anymore.
+  window.history.replaceState(null, '', '/login');
   checkAuth();
 }
 
@@ -418,8 +432,9 @@ function renderDashboard(root) {
 }
 
 async function loadDashboard() {
+  const wrap = document.getElementById('d-table-wrap');
   try {
-    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
+    const links = await apiFetch('/links/me');
     document.getElementById('d-links').textContent = links.length;
     const totalClicks = links.reduce((s, l) => s + (l.click_count || 0), 0);
     document.getElementById('d-clicks').textContent = totalClicks.toLocaleString();
@@ -427,7 +442,7 @@ async function loadDashboard() {
     document.getElementById('d-active').textContent = active;
     document.getElementById('d-avg').textContent = links.length ? Math.round(totalClicks / links.length) : '—';
 
-    const wrap = document.getElementById('d-table-wrap');
+    if (!wrap) return;
     if (!links.length) {
       wrap.innerHTML = `<div class="empty"><i class="ti ti-link-off"></i><p>No links yet. <a href="#" onclick="setPage('shorten');return false;" style="color:var(--accent)">Create one</a> to get started.</p></div>`;
       return;
@@ -435,7 +450,7 @@ async function loadDashboard() {
     wrap.innerHTML = `<table class="data-table">
       <thead><tr><th>Code</th><th>Original URL</th><th>Clicks</th><th>Status</th><th>Expires</th><th></th></tr></thead>
       <tbody>
-        ${links.slice(-10).reverse().map(l => `
+        ${links.slice(0,10).map(l => `
           <tr>
             <td class="code-cell">${l.code}</td>
             <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${l.original_url}</td>
@@ -446,7 +461,10 @@ async function loadDashboard() {
           </tr>`).join('')}
       </tbody>
     </table>`;
-  } catch(e) { console.warn(e); }
+  } catch(e) {
+    console.warn(e);
+    if (wrap) wrap.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
+  }
 }
 
 async function doDelete() {
@@ -457,9 +475,7 @@ async function doDelete() {
   try {
     const res = await apiFetch(`/links/${code}`, { method: 'DELETE' });
     msg.innerHTML = `<div class="badge badge-green" style="display:inline-flex"><i class="ti ti-check"></i> ${res.Message || 'Deactivated'}</div>`;
-    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
-    links = links.map(l => l.code === code ? {...l, is_active: false} : l);
-    localStorage.setItem('snip_links', JSON.stringify(links));
+    loadDashboard();
   } catch(e) {
     msg.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
   }
@@ -562,9 +578,6 @@ async function doShorten() {
     document.getElementById('r-exp').textContent = link.expires_at ? new Date(link.expires_at).toLocaleDateString() : '—';
     document.getElementById('r-max').textContent = link.max_clicks || '—';
     document.getElementById('s-result').style.display = 'block';
-    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
-    links.push(link);
-    localStorage.setItem('snip_links', JSON.stringify(links));
   } catch(e) {
     err.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
   } finally {
@@ -625,9 +638,6 @@ async function doBulk() {
         `<tr><td style="font-size:12px;">${f.url}</td><td style="color:var(--red);font-size:12px;">${f.reason}</td></tr>`).join('');
       document.getElementById('b-failed-wrap').style.display = 'block';
     }
-    let links = JSON.parse(localStorage.getItem('snip_links') || '[]');
-    links = [...links, ...(res.created || [])];
-    localStorage.setItem('snip_links', JSON.stringify(links));
   } catch(e) {
     err.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
   } finally {
@@ -651,17 +661,18 @@ function renderAnalytics(root) {
       <div id="ana-output"></div>
     </div>`;
 
-  const links = JSON.parse(localStorage.getItem('snip_links') || '[]');
-  if (links.length) {
+  apiFetch('/links/me').then(links => {
+    if (!links.length) return;
     const qc = document.getElementById('ana-quick-codes');
-    links.slice(-5).reverse().forEach(l => {
+    if (!qc) return;
+    links.slice(0, 5).forEach(l => {
       const btn = document.createElement('button');
       btn.className = 'btn btn-ghost btn-sm';
       btn.innerHTML = `<i class="ti ti-link"></i> ${l.code}`;
       btn.onclick = () => { document.getElementById('ana-code-input').value = l.code; loadAnalytics(l.code); };
       qc.appendChild(btn);
     });
-  }
+  }).catch(e => console.warn(e));
 }
 
 async function loadAnalytics(code) {
@@ -818,8 +829,10 @@ async function doHealth() {
 
 /* ───── INIT ───── */
 checkAuth();
-render('dashboard');
-doHealth();
+if (localStorage.getItem('auth_token')) {
+  render('dashboard');
+  doHealth();
+}
 </script>
 </body>
 </html>

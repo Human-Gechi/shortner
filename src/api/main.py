@@ -69,13 +69,38 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth_router)
 
 
-@app.get("/ui")
+@app.get("/", include_in_schema=False)
+async def home():
+    return FileResponse("static/home.html")
+
+
+@app.get("/login", include_in_schema=False)
+async def login_page():
+    return FileResponse("static/index.html")
+
+
+@app.get("/register", include_in_schema=False)
+async def register_page():
+    return FileResponse("static/index.html")
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard_page():
+    return FileResponse("static/index.html")
+
+
+@app.get("/ui", include_in_schema=False)
 async def frontend():
     return FileResponse("static/index.html")
 
 
-@app.get("/")
-async def root():
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("static/favicon.svg")
+
+
+@app.get("/api", tags=["meta"])
+async def api_info():
     return {
         "message": "URL Shortener API",
         "version": "1.0.0",
@@ -152,10 +177,7 @@ async def get_my_links(
 ):
     result = await db.execute(
         select(Link)
-        .where(
-            Link.owner_id == current_user.id,
-            Link.is_active.is_(True),
-        )
+        .where(Link.owner_id == current_user.id)
         .order_by(Link.created_at.desc())
     )
     return result.scalars().all()

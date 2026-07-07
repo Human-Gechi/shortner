@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Human.ly — Short links, real analytics</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0D1117; --surface: #161B22; --surface2: #21262D; --border: #30363D;
+    --accent: #58A6FF; --accent-dim: #1f3a5f; --text: #E6EDF3; --text2: #8B949E; --text3: #6E7681;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 40px; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .brand-icon i { color: #0D1117; font-size: 18px; }
+  .brand-name { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+  .nav-links { display: flex; gap: 12px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; text-decoration: none; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #0D1117; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); }
+
+  .hero { max-width: 780px; margin: 0 auto; text-align: center; padding: 110px 24px 60px; }
+  .hero h1 { font-size: 42px; font-weight: 700; line-height: 1.2; margin-bottom: 18px; }
+  .hero h1 span { color: var(--accent); }
+  .hero p { font-size: 16px; color: var(--text2); margin-bottom: 34px; line-height: 1.6; }
+  .hero-actions { display: flex; gap: 14px; justify-content: center; }
+  .btn-lg { padding: 13px 26px; font-size: 15px; }
+
+  .features { max-width: 960px; margin: 0 auto; padding: 20px 24px 100px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .feature { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .feature i { font-size: 22px; color: var(--accent); margin-bottom: 12px; display: block; }
+  .feature h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .feature p { font-size: 13px; color: var(--text3); line-height: 1.6; }
+
+  footer { text-align: center; padding: 24px; color: var(--text3); font-size: 12px; border-top: 1px solid var(--border); }
+
+  @media (max-width: 700px) {
+    .hero h1 { font-size: 30px; }
+    .features { grid-template-columns: 1fr; }
+    nav { padding: 16px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <div class="brand-icon"><i class="ti ti-link"></i></div>
+    <div class="brand-name">Human.ly</div>
+  </div>
+  <div class="nav-links">
+    <a href="/login" class="btn btn-ghost">Log in</a>
+    <a href="/register" class="btn btn-primary">Sign up</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <h1>Short links, <span>real analytics</span>.</h1>
+  <p>Shorten any URL in seconds, track clicks by country, device and browser, and manage everything from one clean dashboard.</p>
+  <div class="hero-actions">
+    <a href="/register" class="btn btn-primary btn-lg"><i class="ti ti-rocket"></i> Get started free</a>
+    <a href="/login" class="btn btn-ghost btn-lg"><i class="ti ti-login"></i> Log in</a>
+  </div>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <i class="ti ti-scissors"></i>
+    <h3>Shorten instantly</h3>
+    <p>Custom aliases, expiry dates and click limits — create a short link exactly the way you want it.</p>
+  </div>
+  <div class="feature">
+    <i class="ti ti-chart-bar"></i>
+    <h3>Deep analytics</h3>
+    <p>See clicks over time, top countries, devices and browsers for every link you create.</p>
+  </div>
+  <div class="feature">
+    <i class="ti ti-stack-2"></i>
+    <h3>Bulk create</h3>
+    <p>Paste up to 100 URLs at once and get short links back in a single request.</p>
+  </div>
+</section>
+
+<footer>Human.ly URL Shortener &middot; v1.0.0</footer>
+
+<script>
+  // If already signed in, skip the pitch and go straight to the dashboard.
+  if (localStorage.getItem('auth_token')) {
+    window.location.href = '/dashboard';
+  }
+</script>
+
+</body>
+</html>
