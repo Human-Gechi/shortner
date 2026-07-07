@@ -105,11 +105,6 @@ async def dashboard_page():
     return FileResponse("static/index.html")
 
 
-@app.get("/ui", include_in_schema=False)
-async def frontend():
-    return FileResponse("static/index.html")
-
-
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse("static/favicon.svg")

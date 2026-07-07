@@ -58,9 +58,6 @@
   .nav-item.active { background: var(--accent-dim); color: var(--accent); }
   .nav-item i { font-size: 16px; width: 16px; }
   .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
-  .health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .health-label { font-size: 12px; color: var(--text3); }
 
   /* Main */
   .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -233,14 +230,9 @@
       <button class="nav-item" onclick="setPage('bulk')"><i class="ti ti-stack-2" aria-hidden="true"></i> Bulk Create</button>
       <div class="nav-section">Inspect</div>
       <button class="nav-item" onclick="setPage('analytics')"><i class="ti ti-chart-bar" aria-hidden="true"></i> Analytics</button>
-      <button class="nav-item" onclick="setPage('health')"><i class="ti ti-activity" aria-hidden="true"></i> Health Check</button>
       <div class="nav-section">Account</div>
       <button class="nav-item" onclick="handleLogout()" style="color: var(--red);"><i class="ti ti-logout" aria-hidden="true"></i> Logout</button>
     </nav>
-    <div class="sidebar-footer">
-      <span class="health-dot" id="sidebar-dot"></span>
-      <span class="health-label" id="sidebar-status">Checking…</span>
-    </div>
   </aside>
 
   <div class="main">
@@ -406,7 +398,7 @@ function setPage(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     if (el.getAttribute('onclick')?.includes(page)) el.classList.add('active');
   });
-  const titles = { dashboard: 'Dashboard', shorten: 'Shorten URL', bulk: 'Bulk Create', analytics: 'Analytics', health: 'Health Check' };
+  const titles = { dashboard: 'Dashboard', shorten: 'Shorten URL', bulk: 'Bulk Create', analytics: 'Analytics' };
   document.getElementById('page-title').textContent = titles[page] || page;
   render(page);
 }
@@ -414,7 +406,7 @@ function setPage(page) {
 function render(page) {
   const root = document.getElementById('content-root');
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-  const pages = { dashboard: renderDashboard, shorten: renderShorten, bulk: renderBulk, analytics: renderAnalytics, health: renderHealth };
+  const pages = { dashboard: renderDashboard, shorten: renderShorten, bulk: renderBulk, analytics: renderAnalytics };
   if (pages[page]) pages[page](root);
 }
 
@@ -830,62 +822,10 @@ function renderAnalyticsData(out, code, data) {
   }
 }
 
-/* ───── HEALTH ───── */
-function renderHealth(root) {
-  root.innerHTML = `
-    <div class="stack" style="max-width:580px;">
-      <div class="card">
-        <div class="card-header"><span class="card-title-lg">System Health</span>
-          <button class="btn btn-ghost btn-sm" onclick="doHealth()"><i class="ti ti-refresh"></i> Refresh</button>
-        </div>
-        <div id="health-out"><div class="empty"><span class="spinner"></span></div></div>
-      </div>
-    </div>`;
-  doHealth();
-}
-
-async function doHealth() {
-  const out = document.getElementById('health-out');
-  if (!out) return;
-  out.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
-  try {
-    const h = await apiFetch('/health');
-    const db = h.services?.database;
-    const redis = h.services?.redis;
-    out.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface2);border-radius:var(--radius);">
-          <div style="display:flex;align-items:center;gap:10px;"><i class="ti ti-database" style="font-size:20px;color:var(--text3)"></i><div><div style="font-size:13px;font-weight:500;">PostgreSQL</div><div style="font-size:11px;color:var(--text3);">Primary database</div></div></div>
-          <span class="badge ${db === 'healthy' ? 'badge-green' : 'badge-red'}">${db}</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface2);border-radius:var(--radius);">
-          <div style="display:flex;align-items:center;gap:10px;"><i class="ti ti-server" style="font-size:20px;color:var(--text3)"></i><div><div style="font-size:13px;font-weight:500;">Redis</div><div style="font-size:11px;color:var(--text3);">Cache & rate limiting</div></div></div>
-          <span class="badge ${redis === 'healthy' ? 'badge-green' : 'badge-red'}">${redis}</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface2);border-radius:var(--radius);">
-          <div style="display:flex;align-items:center;gap:10px;"><i class="ti ti-cpu" style="font-size:20px;color:var(--text3)"></i><div><div style="font-size:13px;font-weight:500;">API Server</div><div style="font-size:11px;color:var(--text3);">FastAPI v1.0.0</div></div></div>
-          <span class="badge badge-green">online</span>
-        </div>
-      </div>
-      <div class="divider"></div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="health-dot"></span>
-        <span style="font-size:13px;color:var(--text2);">Overall status: <strong style="color:${h.status === 'healthy' ? 'var(--green)' : 'var(--red)'};">${h.status}</strong></span>
-      </div>`;
-    document.getElementById('sidebar-dot').style.background = h.status === 'healthy' ? 'var(--green)' : 'var(--red)';
-    document.getElementById('sidebar-status').textContent = h.status === 'healthy' ? 'All systems go' : 'Degraded';
-  } catch(e) {
-    out.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>Health check failed: ${e.message}</div>`;
-    document.getElementById('sidebar-dot').style.background = 'var(--red)';
-    document.getElementById('sidebar-status').textContent = 'Unreachable';
-  }
-}
-
 /* ───── INIT ───── */
 checkAuth();
 if (localStorage.getItem('auth_token')) {
   render('dashboard');
-  doHealth();
 }
 </script>
 </body>
