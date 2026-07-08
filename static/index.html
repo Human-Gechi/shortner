@@ -494,11 +494,17 @@ async function loadDashboard() {
       return;
     }
     wrap.innerHTML = `<table class="data-table">
-      <thead><tr><th>Code</th><th>Original URL</th><th>Clicks</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+      <thead><tr><th>Code</th><th>Short Link</th><th>Original URL</th><th>Clicks</th><th>Status</th><th>Expires</th><th></th></tr></thead>
       <tbody>
         ${links.slice(0,10).map(l => `
           <tr>
             <td class="code-cell">${l.code}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <a href="${l.short_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:12px;color:var(--accent);text-decoration:none;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.short_url}</a>
+                <button class="copy-btn" onclick="copyText('${l.short_url}', this)" aria-label="Copy short URL" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:2px;font-size:13px;"><i class="ti ti-copy"></i></button>
+              </div>
+            </td>
             <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${l.original_url}</td>
             <td><span class="tag">${l.click_count || 0}</span></td>
             <td><span class="badge ${l.is_active ? 'badge-green' : 'badge-red'}">${l.is_active ? 'Active' : 'Inactive'}</span></td>
