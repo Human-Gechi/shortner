@@ -156,12 +156,48 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+  /* Mobile nav trigger + overlay (hidden on desktop) */
+  .menu-btn { display: none; background: none; border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: var(--radius); align-items: center; justify-content: center; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 998; }
+  .sidebar-close-btn { display: none; }
+
   /* Responsive */
   @media (max-width: 768px) {
-    .sidebar { display: none; }
+    .menu-btn { display: inline-flex; }
+    .topbar { padding: 0 16px; gap: 10px; }
+    .topbar-title { font-size: 14px; }
+    .content { padding: 16px; }
+
+    .sidebar {
+      display: flex;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 260px;
+      max-width: 80vw;
+      z-index: 999;
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.open { display: block; }
+    .sidebar-close-btn { display: inline-flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); color: var(--text2); width: 30px; height: 30px; border-radius: var(--radius); cursor: pointer; font-size: 16px; }
+    .sidebar-brand { display: flex; align-items: center; justify-content: space-between; }
+
     .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
+
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .data-table { min-width: 640px; }
+
+    .auth-card { padding: 24px 20px; }
+  }
+
+  @media (max-width: 420px) {
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .stat-value { font-size: 22px; }
   }
 
   .tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-family: var(--mono); font-size: 11px; color: var(--text3); }
@@ -215,12 +251,17 @@
   </div>
 </div>
 
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <div class="app">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <div class="brand-icon"><i class="ti ti-link" aria-hidden="true"></i></div>
-      <div class="brand-name">Human.ly</div>
-      <div class="brand-sub">URL Shortener</div>
+      <div>
+        <div class="brand-icon"><i class="ti ti-link" aria-hidden="true"></i></div>
+        <div class="brand-name">Human.ly</div>
+        <div class="brand-sub">URL Shortener</div>
+      </div>
+      <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close menu"><i class="ti ti-x" aria-hidden="true"></i></button>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">Overview</div>
@@ -237,7 +278,10 @@
 
   <div class="main">
     <header class="topbar">
-      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <button class="menu-btn" onclick="openSidebar()" aria-label="Open menu"><i class="ti ti-menu-2" aria-hidden="true"></i></button>
+        <div class="topbar-title" id="page-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Dashboard</div>
+      </div>
       <div class="topbar-actions">
         <span class="badge badge-green" id="env-badge"><i class="ti ti-circle-filled" style="font-size:8px"></i> v1.0.0</span>
       </div>
@@ -391,6 +435,16 @@ function handleLogout() {
   checkAuth();
 }
 
+/* ───── MOBILE SIDEBAR DRAWER ───── */
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
 /* ───── PAGE NAVIGATION ───── */
 function setPage(page) {
   currentPage = page;
@@ -401,6 +455,7 @@ function setPage(page) {
   const titles = { dashboard: 'Dashboard', shorten: 'Shorten URL', bulk: 'Bulk Create', analytics: 'Analytics' };
   document.getElementById('page-title').textContent = titles[page] || page;
   render(page);
+  closeSidebar();
 }
 
 function render(page) {
@@ -493,7 +548,7 @@ async function loadDashboard() {
       wrap.innerHTML = `<div class="empty"><i class="ti ti-link-off"></i><p>No links yet. <a href="#" onclick="setPage('shorten');return false;" style="color:var(--accent)">Create one</a> to get started.</p></div>`;
       return;
     }
-    wrap.innerHTML = `<table class="data-table">
+    wrap.innerHTML = `<div class="table-scroll"><table class="data-table">
       <thead><tr><th>Code</th><th>Short Link</th><th>Original URL</th><th>Clicks</th><th>Status</th><th>Expires</th><th></th></tr></thead>
       <tbody>
         ${links.slice(0,10).map(l => `
@@ -512,7 +567,7 @@ async function loadDashboard() {
             <td><button class="btn btn-ghost btn-sm" onclick="setPage('analytics');document.getElementById('ana-code-input').value='${l.code}';loadAnalytics('${l.code}')"><i class="ti ti-chart-bar"></i></button></td>
           </tr>`).join('')}
       </tbody>
-    </table>`;
+    </table></div>`;
   } catch(e) {
     console.warn(e);
     if (wrap) wrap.innerHTML = `<div class="error-box"><i class="ti ti-alert-circle"></i>${e.message}</div>`;
@@ -655,11 +710,11 @@ function renderBulk(root) {
       <div id="b-result" style="display:none;" class="stack">
         <div class="card">
           <div class="card-title" style="margin-bottom:12px;">Created <span id="b-count" class="badge badge-green" style="margin-left:6px;">0</span></div>
-          <table class="data-table" id="b-table"><thead><tr><th>Code</th><th>Short URL</th><th>Original</th></tr></thead><tbody id="b-tbody"></tbody></table>
+          <div class="table-scroll"><table class="data-table" id="b-table"><thead><tr><th>Code</th><th>Short URL</th><th>Original</th></tr></thead><tbody id="b-tbody"></tbody></table></div>
         </div>
         <div id="b-failed-wrap" style="display:none;" class="card">
           <div class="card-title" style="margin-bottom:12px;color:var(--red)">Failed <span id="b-fail-count" class="badge badge-red" style="margin-left:6px;">0</span></div>
-          <table class="data-table"><thead><tr><th>URL</th><th>Reason</th></tr></thead><tbody id="b-fail-tbody"></tbody></table>
+          <div class="table-scroll"><table class="data-table"><thead><tr><th>URL</th><th>Reason</th></tr></thead><tbody id="b-fail-tbody"></tbody></table></div>
         </div>
       </div>
     </div>`;
