@@ -30,8 +30,9 @@ class Settings(BaseSettings):
     )
     MAX_TTL_SECONDS: int = Field(default=60 * 60 * 24 * 365)
     RESERVED_ALIASES: List[str] = Field(default_factory=list)
-    MAX_BULK_ITEMS: int = Field(default=100)
-   
+    MAX_BULK_ITEMS: int = Field(default=5)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ALGORITHM: str = "HS256"
     SALT: str = Field(..., min_length=16)
 
 

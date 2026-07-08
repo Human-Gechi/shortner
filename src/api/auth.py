@@ -18,10 +18,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 def create_token(user_id: int) -> str:
     payload = {
         "sub": str(user_id),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     }
     return jwt.encode(
-        payload, settings.SECRET_KEY.get_secret_value(), algorithm="HS256"
+        payload, settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM
     )
 
 
