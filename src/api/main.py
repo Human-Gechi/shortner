@@ -122,7 +122,7 @@ async def api_info():
 # health
 
 
-@app.get("/health", status_code=status.HTTP_200_OK)
+@app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
 async def health():
     report = {
         "status": "healthy",
@@ -155,7 +155,7 @@ async def health():
 # Links for app
 
 
-@app.post("/links", response_model=LinkResponse, status_code=201)
+@app.post("/links", response_model=LinkResponse, status_code=201, tags=["Links"])
 async def create_link(
     body: CreateLinkRequest,
     request: Request,
@@ -181,7 +181,7 @@ async def create_link(
     return link
 
 
-@app.get("/links/me", response_model=list[LinkResponse])
+@app.get("/links/me", response_model=list[LinkResponse], tags=["Links"])
 async def get_my_links(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -194,7 +194,7 @@ async def get_my_links(
     return result.scalars().all()
 
 
-@app.post("/links/bulk", status_code=201)
+@app.post("/links/bulk", status_code=201, tags=["Links"])
 async def bulk_links(
     body: BulkCreateRequest,
     request: Request,
@@ -208,7 +208,7 @@ async def bulk_links(
     return await bulk_create(db, body, owner_id=current_user.id)
 
 
-@app.delete("/links/{code}")
+@app.delete("/links/{code}", tags=["Links"])
 async def delete_link(
     code: str,
     db: AsyncSession = Depends(get_db),
@@ -233,7 +233,7 @@ async def delete_link(
 # Application analytics
 
 
-@app.get("/links/{code}/analytics", response_model=AnalyticsResponse)
+@app.get("/links/{code}/analytics", response_model=AnalyticsResponse, tags=["Analytics"])
 async def link_analytics(
     code: str,
     db: AsyncSession = Depends(get_db),
@@ -292,7 +292,7 @@ def redirect_via_interstitial(destination: str) -> RedirectResponse:
     return RedirectResponse(f"/static/redirect.html?to={quote(destination, safe='')}")
 
 
-@app.get("/{code}")
+@app.get("/{code}", tags=["Redirect"])
 async def redirect(
     code: str,
     request: Request,
