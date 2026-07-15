@@ -20,4 +20,4 @@ USER notroot
 ENV PATH="/home/notroot/.local/bin:${PATH}"
 
 
-CMD uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+CMD uvicorn backend.app.main:app  --host 0.0.0.0 --port $PORT
