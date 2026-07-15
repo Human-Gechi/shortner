@@ -1,4 +1,4 @@
-from src.dependencies.database import get_db
+from backend.dependencies.database import get_db
 import asyncio
 from sqlalchemy import text
 

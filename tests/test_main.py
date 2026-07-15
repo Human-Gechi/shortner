@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from src.api.main import app
+from backend.app.main import app
 import pytest
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -9,14 +9,12 @@ client = TestClient(app)
 
 
 @pytest.mark.asyncio
-async def test_root():
-    res = client.get("/")
+async def test_api_info():
+    res = client.get("/api")
     assert res.json() == {
-        "message": "Welcome to the Link Shortener & Analytics API",
+        "message": "URL Shortener API",
         "version": "1.0.0",
-        "status": "operational",
-        "documentation": "/docs",
-        "repository": "https://github.com/Human-Gechi/shortner",
+        "docs": "/docs",
     }
 
 
@@ -34,8 +32,8 @@ async def test_health_all_healthy():
     mock_redis.ping.return_value = True
 
     with (
-        patch("src.api.main.get_db", return_value=mock_get_db()),
-        patch("src.api.main.redis.Redis.from_url", return_value=mock_redis),
+        patch("backend.app.main.get_db", return_value=mock_get_db()),
+        patch("backend.app.main.redis.Redis.from_url", return_value=mock_redis),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -55,8 +53,8 @@ async def test_health_db_down():
     mock_redis.ping.return_value = True
 
     with (
-        patch("src.api.main.get_db", side_effect=Exception("DB connection failed")),
-        patch("src.api.main.redis.Redis.from_url", return_value=mock_redis),
+        patch("backend.app.main.get_db", side_effect=Exception("DB connection failed")),
+        patch("backend.app.main.redis.Redis.from_url", return_value=mock_redis),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -75,8 +73,8 @@ async def test_health_redis_down():
     mock_redis.ping.side_effect = Exception("Redis connection failed")
 
     with (
-        patch("src.api.main.get_db", return_value=mock_get_db()),
-        patch("src.api.main.redis.Redis.from_url", return_value=mock_redis),
+        patch("backend.app.main.get_db", return_value=mock_get_db()),
+        patch("backend.app.main.redis.Redis.from_url", return_value=mock_redis),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
@@ -94,8 +92,8 @@ async def test_health_both_down():
     mock_redis.ping.side_effect = Exception("Redis down")
 
     with (
-        patch("src.api.main.get_db", side_effect=Exception("DB down")),
-        patch("src.api.main.redis.Redis.from_url", return_value=mock_redis),
+        patch("backend.app.main.get_db", side_effect=Exception("DB down")),
+        patch("backend.app.main.redis.Redis.from_url", return_value=mock_redis),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"

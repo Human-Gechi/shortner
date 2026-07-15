@@ -1,5 +1,5 @@
 import redis
-from src.config import get_settings
+from backend.config import get_settings
 from datetime import datetime, timezone
 
 

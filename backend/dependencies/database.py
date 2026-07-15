@@ -1,4 +1,4 @@
-from src.app_models.database import async_session
+from backend.app_models.database import async_session
 from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 

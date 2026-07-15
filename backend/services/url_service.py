@@ -5,12 +5,12 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from src.cache.redis_client import LinkCache, ClickCounter, UniqueVisitorTracker
-from src.api.schemas import BulkCreateRequest
-from src.log import get_logger
-from src.app_models.models import Link, Click
-from src.config import get_settings
-from src.utils.helpers import (
+from backend.cache.redis_client import LinkCache, ClickCounter, UniqueVisitorTracker
+from backend.app.schemas import BulkCreateRequest
+from backend.log import get_logger
+from backend.app_models.models import Link, Click
+from backend.config import get_settings
+from backend.utils.helpers import (
     normalize_url,
     generate_code,
 )

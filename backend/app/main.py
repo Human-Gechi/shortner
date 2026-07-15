@@ -11,26 +11,26 @@ import asyncio
 import redis
 from urllib.parse import quote
 
-from src.dependencies.database import get_db
-from src.app_models.models import Link, User
-from src.app_models.database import async_engine, Base
-from src.cache.redis_client import LinkCache, RateLimiter
-from src.config import get_settings
-from src.api.auth import get_current_user, router as auth_router
-from src.log import get_logger
-from src.api.schemas import (
+from backend.dependencies.database import get_db
+from backend.app_models.models import Link, User
+from backend.app_models.database import async_engine, Base
+from backend.cache.redis_client import LinkCache, RateLimiter
+from backend.config import get_settings
+from backend.app.auth import get_current_user, router as auth_router
+from backend.log import get_logger
+from backend.app.schemas import (
     LinkResponse,
     CreateLinkRequest,
     BulkCreateRequest,
     AnalyticsResponse,
 )
-from src.services.url_service import (
+from backend.services.url_service import (
     create_short_link,
     resolve_link,
     record_click,
     bulk_create,
 )
-from src.services.analytics_service import (
+from backend.services.analytics_service import (
     clicks_over_time,
     clicks_by_browser,
     clicks_by_country,
@@ -81,33 +81,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 app.include_router(auth_router)
 
 
 @app.get("/", include_in_schema=False)
 async def home():
-    return FileResponse("static/home.html")
+    return FileResponse("frontend/home.html")
 
 
 @app.get("/login", include_in_schema=False)
 async def login_page():
-    return FileResponse("static/index.html")
+    return FileResponse("frontend/index.html")
 
 
 @app.get("/register", include_in_schema=False)
 async def register_page():
-    return FileResponse("static/index.html")
+    return FileResponse("frontend/index.html")
 
 
 @app.get("/dashboard", include_in_schema=False)
 async def dashboard_page():
-    return FileResponse("static/index.html")
+    return FileResponse("frontend/index.html")
 
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    return FileResponse("static/favicon.svg")
+    return FileResponse("frontend/favicon.svg")
 
 
 @app.get("/api", tags=["meta"])
@@ -275,12 +275,12 @@ def is_link_preview_bot(user_agent: str) -> bool:
     return any(bot in ua for bot in LINK_PREVIEW_BOTS)
 
 
-_BOT_PREVIEW_TEMPLATE = Path("static/bot-preview.html").read_text()
+_BOT_PREVIEW_TEMPLATE = Path("frontend/bot-preview.html").read_text()
 
 
 def render_generic_preview(code: str) -> str:
     short_url = f"{settings.DOMAIN}/{code}"
-    og_image_url = f"{settings.DOMAIN}/static/preview-card.png"
+    og_image_url = f"{settings.DOMAIN}/frontend/preview-card.png"
     return (
         _BOT_PREVIEW_TEMPLATE
         .replace("__SHORT_URL__", short_url)
@@ -289,7 +289,7 @@ def render_generic_preview(code: str) -> str:
 
 
 def redirect_via_interstitial(destination: str) -> RedirectResponse:
-    return RedirectResponse(f"/static/redirect.html?to={quote(destination, safe='')}")
+    return RedirectResponse(f"/frontend/redirect.html?to={quote(destination, safe='')}")
 
 
 @app.get("/{code}", tags=["Redirect"])

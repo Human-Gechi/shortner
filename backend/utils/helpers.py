@@ -1,7 +1,7 @@
 import secrets
 from argon2 import PasswordHasher
 from argon2.exceptions import Argon2Error
-from src.config import get_settings
+from backend.config import get_settings
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
 settings = get_settings()

@@ -1,11 +1,11 @@
-from src.app_models.models import Click, Link
+from backend.app_models.models import Click, Link
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.app_models.database import async_session
+from backend.app_models.database import async_session
 from sqlalchemy import select, func
 from fastapi.exceptions import HTTPException
-from src.cache.redis_client import UniqueVisitorTracker, ClickCounter
+from backend.cache.redis_client import UniqueVisitorTracker, ClickCounter
 from datetime import datetime, timedelta, timezone
-from src.log import get_logger
+from backend.log import get_logger
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError, OperationalError
 
 logger = get_logger("analytics")

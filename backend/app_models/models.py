@@ -10,7 +10,7 @@ from sqlalchemy import (
     func,
     ForeignKey,
 )
-from src.app_models.database import Base
+from backend.app_models.database import Base
 
 
 # For Authentication

@@ -3,11 +3,11 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.dependencies.database import get_db
-from src.app_models.models import User
-from src.api.schemas import UserRegisterSchema
-from src.utils.helpers import password_hash, verify_password
-from src.config import get_settings
+from backend.dependencies.database import get_db
+from backend.app_models.models import User
+from backend.app.schemas import UserRegisterSchema
+from backend.utils.helpers import password_hash, verify_password
+from backend.config import get_settings
 from sqlalchemy import select
 
 router = APIRouter(prefix="/auth", tags=["auth"])

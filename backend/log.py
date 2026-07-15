@@ -2,7 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from src.config import get_settings
+from backend.config import get_settings
 
 
 def setup_logging() -> None:
