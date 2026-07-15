@@ -53,14 +53,14 @@ breakdown) for anything you own.
 ## Project structure
 
 ```
-├── static/
+├── frontend/
 │   ├── index.html               # Dashboard frontend
 │   └── link-error.html          # Shown when a short
 |   └── redirect.html            # redirection
 |   └── home.html                # Home page
 |   └── bot-preview.html         # mask page webelements  
 |   └── link-error.html          # Shortner svg
-└── src/
+└── backend/
     ├── config.py                 # Settings (env-driven)
     ├── log.py                    # Logger setup
     ├── api/
@@ -77,9 +77,11 @@ breakdown) for anything you own.
     ├── services/
     │   ├── url_service.py         # link creation, resolution, click recording, bulk create
     │   ├── analytics_service.py   # click aggregation queries
-    │   └── geo_service.py         # IP → country/city/region via ip-api.com (httpx)
     └── utils/
         └── helpers.py             # URL normalization, password hashing, code generation
+├── tests/
+|   ├── test_db_live.py
+|   ├── test_main.py
 ```
 
 ---
